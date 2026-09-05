@@ -15,17 +15,36 @@
         <java.version>25</java.version>
     </properties>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
     <build>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <compilerArgs>
-                        <arg>--enable-preview</arg>
-                    </compilerArgs>
-                </configuration>
+<!--                <configuration>-->
+<!--                    <compilerArgs>-->
+<!--&lt;!&ndash;                        <arg>&#45;&#45;enable-preview</arg>&ndash;&gt;-->
+<!--                    </compilerArgs>-->
+<!--                    </compilerArgs>-->
+<!--                </configuration>-->
             </plugin>
+<!--            <plugin>-->
+<!--                <groupId>org.apache.maven.plugins</groupId>-->
+<!--                <artifactId>maven-surefire-plugin</artifactId>-->
+<!--&lt;!&ndash;                <configuration>&ndash;&gt;-->
+<!--&lt;!&ndash;                    <compilerArgs>&ndash;&gt;-->
+<!--&lt;!&ndash;                        <arg>&#45;&#45;enable-preview</arg>&ndash;&gt;-->
+<!--&lt;!&ndash;                    </compilerArgs>&ndash;&gt;-->
+<!--&lt;!&ndash;                </configuration>&ndash;&gt;-->
+<!--            </plugin>-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
