@@ -1,5 +1,7 @@
 package io.codecrafters.redis.protocol;
 
+import java.util.List;
+
 public class RespEncoder {
 
     public static byte[] simpleString(String str) {
@@ -12,6 +14,18 @@ public class RespEncoder {
 
     public static byte[] nullBulkString() {
         return "$-1\r\n".getBytes();
+    }
+
+    public static byte[] emptyList() {return "$*0\r\n".getBytes();}
+
+    public static byte[] encodeList(List<String> arr) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("*").append(arr.size()).append("\r\n");
+        for (String str : arr) {
+            sb.append("$").append(str.length()).append("\r\n");
+            sb.append(str).append("\r\n");
+        }
+        return sb.toString().getBytes();
     }
 
     public static byte[] error(String message) {

@@ -13,4 +13,9 @@ public class ListStore {
         list.addAll(values);
         return list.size();
     }
+
+    public List<String> lRange(String key, int start, int end) {
+        List<String> list = data.containsKey(key) ? data.get(key).subList(start, start+end) : new ArrayList<>();
+        return list;
+    }
 }

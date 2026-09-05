@@ -55,6 +55,14 @@ public class ClientHandler implements Runnable {
                 out.write(value != null ? RespEncoder.bulkString(value) : RespEncoder.nullBulkString());
             }
             case "RPUSH" -> out.write(RespEncoder.RespInteger(listStore.rpush(args.get(1), args.subList(2, args.size()))));
+            case "LRANGE" -> {
+                List<String> result = listStore.lRange(args.get(1), Integer.parseInt(args.get(2)), Integer.parseInt(args.get(3)));
+                if(result.size()==0){
+                    out.write(RespEncoder.emptyList());
+                }else {
+                    out.write(RespEncoder.encodeList(result));
+                }
+            }
             default -> out.write(RespEncoder.error("unknown command '" + args.get(0) + "'"));
         }
     }
