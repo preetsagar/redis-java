@@ -17,9 +17,10 @@ public class ListStore {
     public List<String> lRange(String key, int start, int end) {
         List<String> list = data.getOrDefault(key, new ArrayList<>());
         int size = list.size();
+        if (start < 0) start = Math.max(0, size + start);
         if (end < 0) end = size + end;
         end = Math.min(end, size - 1);
-        if (start < 0 || start > end) return new ArrayList<>();
+        if (start > end) return new ArrayList<>();
         return list.subList(start, end + 1);
     }
 }

@@ -225,4 +225,60 @@ class MainTest {
             assertEquals("*0\r\n", new String(buffer, 0, client.getInputStream().read(buffer)));
         }
     }
+
+    @Test
+    void lrangeLastTwoElementsWithNegativeIndices() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "lrange-test-4", "a", "b", "c", "d", "e").getBytes());
+            in.read(buffer); // consume :5
+
+            client.getOutputStream().write(resp("LRANGE", "lrange-test-4", "-2", "-1").getBytes());
+            assertEquals("*2\r\n$1\r\nd\r\n$1\r\ne\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void lrangeAllExceptLastTwoWithNegativeEnd() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "lrange-test-5", "a", "b", "c", "d", "e").getBytes());
+            in.read(buffer); // consume :5
+
+            client.getOutputStream().write(resp("LRANGE", "lrange-test-5", "0", "-3").getBytes());
+            assertEquals("*3\r\n$1\r\na\r\n$1\r\nb\r\n$1\r\nc\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void lrangeNegativeStartOutOfRangeTreatedAsZero() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "lrange-test-6", "a", "b", "c", "d", "e").getBytes());
+            in.read(buffer); // consume :5
+
+            client.getOutputStream().write(resp("LRANGE", "lrange-test-6", "-6", "-1").getBytes());
+            assertEquals("*5\r\n$1\r\na\r\n$1\r\nb\r\n$1\r\nc\r\n$1\r\nd\r\n$1\r\ne\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void lrangeSubsetRange() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "lrange-test-3", "a", "b", "c", "d", "e").getBytes());
+            in.read(buffer); // consume :5
+
+            client.getOutputStream().write(resp("LRANGE", "lrange-test-3", "1", "3").getBytes());
+            assertEquals("*3\r\n$1\r\nb\r\n$1\r\nc\r\n$1\r\nd\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
 }

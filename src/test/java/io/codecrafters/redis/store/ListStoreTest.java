@@ -90,4 +90,22 @@ class ListStoreTest {
         listStore.rpush("mylist", List.of("a", "b", "c"));
         assertEquals(List.of(), listStore.lRange("mylist", 3, 1));
     }
+
+    @Test
+    void lrangeNegativeStartAndEnd() {
+        listStore.rpush("mylist", List.of("a", "b", "c", "d", "e"));
+        assertEquals(List.of("d", "e"), listStore.lRange("mylist", -2, -1));
+    }
+
+    @Test
+    void lrangeAllExceptLastTwo() {
+        listStore.rpush("mylist", List.of("a", "b", "c", "d", "e"));
+        assertEquals(List.of("a", "b", "c"), listStore.lRange("mylist", 0, -3));
+    }
+
+    @Test
+    void lrangeNegativeStartOutOfRangeTreatedAsZero() {
+        listStore.rpush("mylist", List.of("a", "b", "c", "d", "e"));
+        assertEquals(List.of("a", "b", "c", "d", "e"), listStore.lRange("mylist", -6, -1));
+    }
 }
