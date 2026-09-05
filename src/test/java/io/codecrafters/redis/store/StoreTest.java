@@ -61,4 +61,5 @@ class StoreTest {
         Thread.sleep(100);
         assertEquals("baz", store.get("foo"));
     }
+
 }

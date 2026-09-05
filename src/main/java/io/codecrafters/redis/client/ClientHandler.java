@@ -2,6 +2,7 @@ package io.codecrafters.redis.client;
 
 import io.codecrafters.redis.protocol.RespEncoder;
 import io.codecrafters.redis.protocol.RespParser;
+import io.codecrafters.redis.store.ListStore;
 import io.codecrafters.redis.store.Store;
 
 import java.io.*;
@@ -11,10 +12,12 @@ public class ClientHandler implements Runnable {
 
     private final Socket client;
     private final Store store;
+    private final ListStore listStore;
 
-    public ClientHandler(Socket client, Store store) {
+    public ClientHandler(Socket client, Store store, ListStore listStore) {
         this.client = client;
         this.store = store;
+        this.listStore = listStore;
     }
 
     @Override
@@ -50,6 +53,7 @@ public class ClientHandler implements Runnable {
                 String value = store.get(args[1]);
                 out.write(value != null ? RespEncoder.bulkString(value) : RespEncoder.nullBulkString());
             }
+            case "RPUSH" -> out.write(RespEncoder.RespInteger(listStore.rpush(args[1], args[2])));
             default -> out.write(RespEncoder.error("unknown command '" + args[0] + "'"));
         }
     }

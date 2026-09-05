@@ -17,4 +17,8 @@ public class RespEncoder {
     public static byte[] error(String message) {
         return ("-ERR " + message + "\r\n").getBytes();
     }
+
+    public static byte[] RespInteger(Integer value) {
+        return (":"+value+"\r\n").getBytes();
+    }
 }

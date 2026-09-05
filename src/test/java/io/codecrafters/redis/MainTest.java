@@ -12,11 +12,13 @@ import static org.junit.jupiter.api.Assertions.*;
 class MainTest {
 
     private static final int PORT = 6379;
+    private RedisServer server;
     private Thread serverThread;
 
     @BeforeEach
     void startServer() throws Exception {
-        serverThread = new Thread(() -> new RedisServer(PORT).start());
+        server = new RedisServer(PORT);
+        serverThread = new Thread(server::start);
         serverThread.setDaemon(true);
         serverThread.start();
         Thread.sleep(100);
@@ -24,7 +26,7 @@ class MainTest {
 
     @AfterEach
     void stopServer() throws Exception {
-        serverThread.interrupt();
+        server.stop();
         serverThread.join(1000);
     }
 
@@ -146,6 +148,44 @@ class MainTest {
 
             client.getOutputStream().write(resp("GET", "foo").getBytes());
             assertEquals("$-1\r\n", new String(buffer, 0, in.read(buffer)), "Key should have expired after 1 second");
+        }
+    }
+
+    @Test
+    void rpushReturnsOneForFirstElement() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write(resp("RPUSH", "rpush-test-1", "orange").getBytes());
+            byte[] buffer = new byte[1024];
+            int bytesRead = client.getInputStream().read(buffer);
+            assertEquals(":1\r\n", new String(buffer, 0, bytesRead));
+        }
+    }
+
+    @Test
+    void rpushReturnsSizeAfterMultipleInserts() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "rpush-test-2", "orange").getBytes());
+            in.read(buffer); // consume :1
+
+            client.getOutputStream().write(resp("RPUSH", "rpush-test-2", "mango").getBytes());
+            assertEquals(":2\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void rpushDifferentKeysAreIndependent() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "rpush-test-3a", "a").getBytes());
+            in.read(buffer); // consume :1
+
+            client.getOutputStream().write(resp("RPUSH", "rpush-test-3b", "x").getBytes());
+            assertEquals(":1\r\n", new String(buffer, 0, in.read(buffer)));
         }
     }
 }
