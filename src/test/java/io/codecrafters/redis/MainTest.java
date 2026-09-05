@@ -188,4 +188,41 @@ class MainTest {
             assertEquals(":1\r\n", new String(buffer, 0, in.read(buffer)));
         }
     }
+
+    @Test
+    void lrangeReturnsAllElements() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "lrange-test-1", "a", "b", "c").getBytes());
+            in.read(buffer); // consume :3
+
+            client.getOutputStream().write(resp("LRANGE", "lrange-test-1", "0", "2").getBytes());
+            assertEquals("*3\r\n$1\r\na\r\n$1\r\nb\r\n$1\r\nc\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void lrangeWithNegativeEndReturnsAllElements() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "lrange-test-2", "x", "y").getBytes());
+            in.read(buffer); // consume :2
+
+            client.getOutputStream().write(resp("LRANGE", "lrange-test-2", "0", "-1").getBytes());
+            assertEquals("*2\r\n$1\r\nx\r\n$1\r\ny\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void lrangeOnMissingKeyReturnsEmptyArray() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write(resp("LRANGE", "lrange-test-missing", "0", "-1").getBytes());
+            byte[] buffer = new byte[1024];
+            assertEquals("*0\r\n", new String(buffer, 0, client.getInputStream().read(buffer)));
+        }
+    }
 }

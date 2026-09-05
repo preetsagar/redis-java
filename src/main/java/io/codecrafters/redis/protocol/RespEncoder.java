@@ -16,8 +16,6 @@ public class RespEncoder {
         return "$-1\r\n".getBytes();
     }
 
-    public static byte[] emptyList() {return "$*0\r\n".getBytes();}
-
     public static byte[] encodeList(List<String> arr) {
         StringBuilder sb = new StringBuilder();
         sb.append("*").append(arr.size()).append("\r\n");

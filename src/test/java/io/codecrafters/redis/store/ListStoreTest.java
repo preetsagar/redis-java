@@ -49,4 +49,45 @@ class ListStoreTest {
     void rpushMultipleValuesInOneCall() {
         assertEquals(3, listStore.rpush("mylist", List.of("a", "b", "c")));
     }
+
+    @Test
+    void lrangeReturnsAllElements() {
+        listStore.rpush("mylist", List.of("a", "b", "c"));
+        assertEquals(List.of("a", "b", "c"), listStore.lRange("mylist", 0, 2));
+    }
+
+    @Test
+    void lrangeReturnsSubset() {
+        listStore.rpush("mylist", List.of("a", "b", "c", "d"));
+        assertEquals(List.of("b", "c"), listStore.lRange("mylist", 1, 2));
+    }
+
+    @Test
+    void lrangeIsInclusive() {
+        listStore.rpush("mylist", List.of("a", "b", "c", "d", "e"));
+        assertEquals(List.of("a", "b", "c", "d", "e"), listStore.lRange("mylist", 0, 4));
+    }
+
+    @Test
+    void lrangeWithNegativeEndReturnsToLastElement() {
+        listStore.rpush("mylist", List.of("a", "b", "c"));
+        assertEquals(List.of("a", "b", "c"), listStore.lRange("mylist", 0, -1));
+    }
+
+    @Test
+    void lrangeWithEndBeyondSizeReturnsTillEnd() {
+        listStore.rpush("mylist", List.of("a", "b", "c"));
+        assertEquals(List.of("a", "b", "c"), listStore.lRange("mylist", 0, 100));
+    }
+
+    @Test
+    void lrangeOnMissingKeyReturnsEmpty() {
+        assertEquals(List.of(), listStore.lRange("missing", 0, -1));
+    }
+
+    @Test
+    void lrangeWithStartGreaterThanEndReturnsEmpty() {
+        listStore.rpush("mylist", List.of("a", "b", "c"));
+        assertEquals(List.of(), listStore.lRange("mylist", 3, 1));
+    }
 }

@@ -15,7 +15,11 @@ public class ListStore {
     }
 
     public List<String> lRange(String key, int start, int end) {
-        List<String> list = data.containsKey(key) ? data.get(key).subList(start, start+end) : new ArrayList<>();
-        return list;
+        List<String> list = data.getOrDefault(key, new ArrayList<>());
+        int size = list.size();
+        if (end < 0) end = size + end;
+        end = Math.min(end, size - 1);
+        if (start < 0 || start > end) return new ArrayList<>();
+        return list.subList(start, end + 1);
     }
 }
