@@ -390,4 +390,57 @@ class MainTest {
             assertEquals("*3\r\n$1\r\na\r\n$1\r\nb\r\n$1\r\nc\r\n", new String(buffer, 0, in.read(buffer)));
         }
     }
+
+    @Test
+    void llenMissingKeyReturnsZero() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write(resp("LLEN", "llen-missing").getBytes());
+            byte[] buffer = new byte[1024];
+            assertEquals(":0\r\n", new String(buffer, 0, client.getInputStream().read(buffer)));
+        }
+    }
+
+    @Test
+    void llenAfterRpush() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "llen-test-1", "a", "b", "c").getBytes());
+            in.read(buffer); // consume :3
+
+            client.getOutputStream().write(resp("LLEN", "llen-test-1").getBytes());
+            assertEquals(":3\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void llenAfterLpush() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("LPUSH", "llen-test-2", "a", "b").getBytes());
+            in.read(buffer); // consume :2
+
+            client.getOutputStream().write(resp("LLEN", "llen-test-2").getBytes());
+            assertEquals(":2\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void llenAfterMixedPushes() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "llen-test-3", "a", "b").getBytes());
+            in.read(buffer);
+            client.getOutputStream().write(resp("LPUSH", "llen-test-3", "c").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("LLEN", "llen-test-3").getBytes());
+            assertEquals(":3\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
 }

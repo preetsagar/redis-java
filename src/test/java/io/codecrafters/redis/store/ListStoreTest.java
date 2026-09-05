@@ -138,4 +138,28 @@ class ListStoreTest {
     void lpushCreatesNewListIfKeyAbsent() {
         assertEquals(1, listStore.leftPush("newlist", List.of("x")));
     }
+
+    @Test
+    void llenMissingKeyReturnsZero() {
+        assertEquals(0, listStore.dataSize("missing"));
+    }
+
+    @Test
+    void llenAfterRpush() {
+        listStore.rightPush("mylist", List.of("a", "b", "c"));
+        assertEquals(3, listStore.dataSize("mylist"));
+    }
+
+    @Test
+    void llenAfterLpush() {
+        listStore.leftPush("mylist", List.of("a", "b"));
+        assertEquals(2, listStore.dataSize("mylist"));
+    }
+
+    @Test
+    void llenAfterMixedPushes() {
+        listStore.rightPush("mylist", List.of("a", "b"));
+        listStore.leftPush("mylist", List.of("c"));
+        assertEquals(3, listStore.dataSize("mylist"));
+    }
 }

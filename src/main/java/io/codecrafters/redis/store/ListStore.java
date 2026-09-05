@@ -32,4 +32,9 @@ public class ListStore {
         list.addAll(0, reversed);
         return list.size();
     }
+
+    public int dataSize(String key) {
+        List<String> list = data.get(key);
+        return list == null ? 0 : list.size();
+    }
 }
