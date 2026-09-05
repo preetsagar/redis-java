@@ -3,6 +3,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.Socket;
 import java.net.ServerSocket;
 
@@ -24,9 +25,11 @@ class MainTest {
             try {
                 Socket client = serverSocket.accept();
                 byte[] buffer = new byte[1024];
-                int bytesRead = client.getInputStream().read(buffer);
-                System.out.println("Request: " + new String(buffer, 0, bytesRead));
-                client.getOutputStream().write("+PONG\r\n".getBytes());
+                int bytesRead;
+                while ((bytesRead = client.getInputStream().read(buffer)) > 0) {
+                    System.out.println("Request: " + new String(buffer, 0, bytesRead));
+                    client.getOutputStream().write("+PONG\r\n".getBytes());
+                }
                 client.close();
             } catch (IOException e) {
                 // Expected when we shut the server down in @AfterEach
@@ -79,6 +82,23 @@ class MainTest {
             int bytesRead = client.getInputStream().read(buffer);
             String response = new String(buffer, 0, bytesRead);
             assertEquals("+PONG\r\n", response, "Server should respond with +PONG for any input");
+        }
+    }
+
+    @Test
+    void serverHandlesMultipleCommandsOnSameConnection() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            String[] commands = {"ping\r\n", "hello\r\n", "world\r\n"};
+            for (String command : commands) {
+                client.getOutputStream().write(command.getBytes());
+                int bytesRead = in.read(buffer);
+                String response = new String(buffer, 0, bytesRead);
+                assertEquals("+PONG\r\n", response,
+                    "Server should respond with +PONG for command: " + command.trim());
+            }
         }
     }
 }

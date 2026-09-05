@@ -15,9 +15,11 @@ public class Main {
             // Wait for connection from client.
             clientSocket = serverSocket.accept();
             byte[] buffer = new byte[1024];
-            int bytesRead = clientSocket.getInputStream().read(buffer);
-            System.out.println("Request: " + new String(buffer, 0, bytesRead));
-            clientSocket.getOutputStream().write("+PONG\r\n".getBytes());
+            int bytesRead;
+            while((bytesRead = clientSocket.getInputStream().read(buffer)) != -1){
+                System.out.println("Request: " + new String(buffer, 0, bytesRead));
+                clientSocket.getOutputStream().write("+PONG\r\n".getBytes());
+            }
 
         } catch (IOException e) {
           System.out.println("IOException: " + e.getMessage());
