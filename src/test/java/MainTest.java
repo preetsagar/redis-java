@@ -23,14 +23,21 @@ class MainTest {
         // Run the server accept loop in a background thread (mirrors Main behaviour)
         serverThread = new Thread(() -> {
             try {
-                Socket client = serverSocket.accept();
-                byte[] buffer = new byte[1024];
-                int bytesRead;
-                while ((bytesRead = client.getInputStream().read(buffer)) > 0) {
-                    System.out.println("Request: " + new String(buffer, 0, bytesRead));
-                    client.getOutputStream().write("+PONG\r\n".getBytes());
+                while (true) {
+                    Socket client = serverSocket.accept();
+                    new Thread(() -> {
+                        try (client) {
+                            byte[] buffer = new byte[1024];
+                            int bytesRead;
+                            while ((bytesRead = client.getInputStream().read(buffer)) > 0) {
+                                System.out.println("Request: " + new String(buffer, 0, bytesRead));
+                                client.getOutputStream().write("+PONG\r\n".getBytes());
+                            }
+                        } catch (IOException e) {
+                            // Expected on client disconnect
+                        }
+                    }).start();
                 }
-                client.close();
             } catch (IOException e) {
                 // Expected when we shut the server down in @AfterEach
             }

@@ -1,36 +1,33 @@
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 
 public class Main {
-  public static void main(String[] args){
-        ServerSocket serverSocket = null;
-        Socket clientSocket = null;
-        int port = 6379;
-        try {
-            serverSocket = new ServerSocket(port);
-            // Since the tester restarts your program quite often, setting SO_REUSEADDR ensures that we don't run into 'Address already in use' errors
+
+    private static final int PORT = 6379;
+
+    public static void main(String[] args) {
+        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             serverSocket.setReuseAddress(true);
-            // Wait for connection from client.
-            clientSocket = serverSocket.accept();
+            while (true) {
+                Socket client = serverSocket.accept();
+                new Thread(() -> handleClient(client)).start();
+            }
+        } catch (IOException e) {
+            System.out.println("Server error: " + e.getMessage());
+        }
+    }
+
+    private static void handleClient(Socket client) {
+        try (client) {
             byte[] buffer = new byte[1024];
             int bytesRead;
-            while((bytesRead = clientSocket.getInputStream().read(buffer)) != -1){
+            while ((bytesRead = client.getInputStream().read(buffer)) != -1) {
                 System.out.println("Request: " + new String(buffer, 0, bytesRead));
-                clientSocket.getOutputStream().write("+PONG\r\n".getBytes());
+                client.getOutputStream().write("+PONG\r\n".getBytes());
             }
-
         } catch (IOException e) {
-          System.out.println("IOException: " + e.getMessage());
-        } finally {
-          try {
-            if (clientSocket != null) {
-              clientSocket.close();
-            }
-          } catch (IOException e) {
-            System.out.println("IOException: " + e.getMessage());
-          }
+            System.out.println("Client error: " + e.getMessage());
         }
-  }
+    }
 }
