@@ -1,6 +1,7 @@
 package io.codecrafters.redis.store;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -8,7 +9,7 @@ public class ListStore {
 
     private final HashMap<String, List<String>> data = new HashMap<>();
 
-    public int rpush(String key, List<String> values) {
+    public int rightPush(String key, List<String> values) {
         List<String> list = data.computeIfAbsent(key, k -> new ArrayList<>());
         list.addAll(values);
         return list.size();
@@ -22,5 +23,13 @@ public class ListStore {
         end = Math.min(end, size - 1);
         if (start > end) return new ArrayList<>();
         return list.subList(start, end + 1);
+    }
+
+    public int leftPush(String key, List<String> values) {
+        List<String> list = data.computeIfAbsent(key, k -> new ArrayList<>());
+        List<String> reversed = new ArrayList<>(values);
+        Collections.reverse(reversed);
+        list.addAll(0, reversed);
+        return list.size();
     }
 }

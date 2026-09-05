@@ -18,65 +18,65 @@ class ListStoreTest {
 
     @Test
     void rpushReturnsOneForFirstInsert() {
-        assertEquals(1, listStore.rpush("mylist", List.of("orange")));
+        assertEquals(1, listStore.rightPush("mylist", List.of("orange")));
     }
 
     @Test
     void rpushAppendsAndReturnsSize() {
-        listStore.rpush("mylist", List.of("orange"));
-        assertEquals(2, listStore.rpush("mylist", List.of("mango")));
+        listStore.rightPush("mylist", List.of("orange"));
+        assertEquals(2, listStore.rightPush("mylist", List.of("mango")));
     }
 
     @Test
     void rpushCreatesNewListIfKeyAbsent() {
-        assertEquals(1, listStore.rpush("newlist", List.of("value")));
+        assertEquals(1, listStore.rightPush("newlist", List.of("value")));
     }
 
     @Test
     void rpushMultipleValuesOnSameKey() {
-        listStore.rpush("mylist", List.of("a"));
-        listStore.rpush("mylist", List.of("b"));
-        assertEquals(3, listStore.rpush("mylist", List.of("c")));
+        listStore.rightPush("mylist", List.of("a"));
+        listStore.rightPush("mylist", List.of("b"));
+        assertEquals(3, listStore.rightPush("mylist", List.of("c")));
     }
 
     @Test
     void rpushDifferentKeysAreIndependent() {
-        listStore.rpush("list1", List.of("a", "b"));
-        assertEquals(1, listStore.rpush("list2", List.of("x")));
+        listStore.rightPush("list1", List.of("a", "b"));
+        assertEquals(1, listStore.rightPush("list2", List.of("x")));
     }
 
     @Test
     void rpushMultipleValuesInOneCall() {
-        assertEquals(3, listStore.rpush("mylist", List.of("a", "b", "c")));
+        assertEquals(3, listStore.rightPush("mylist", List.of("a", "b", "c")));
     }
 
     @Test
     void lrangeReturnsAllElements() {
-        listStore.rpush("mylist", List.of("a", "b", "c"));
+        listStore.rightPush("mylist", List.of("a", "b", "c"));
         assertEquals(List.of("a", "b", "c"), listStore.lRange("mylist", 0, 2));
     }
 
     @Test
     void lrangeReturnsSubset() {
-        listStore.rpush("mylist", List.of("a", "b", "c", "d"));
+        listStore.rightPush("mylist", List.of("a", "b", "c", "d"));
         assertEquals(List.of("b", "c"), listStore.lRange("mylist", 1, 2));
     }
 
     @Test
     void lrangeIsInclusive() {
-        listStore.rpush("mylist", List.of("a", "b", "c", "d", "e"));
+        listStore.rightPush("mylist", List.of("a", "b", "c", "d", "e"));
         assertEquals(List.of("a", "b", "c", "d", "e"), listStore.lRange("mylist", 0, 4));
     }
 
     @Test
     void lrangeWithNegativeEndReturnsToLastElement() {
-        listStore.rpush("mylist", List.of("a", "b", "c"));
+        listStore.rightPush("mylist", List.of("a", "b", "c"));
         assertEquals(List.of("a", "b", "c"), listStore.lRange("mylist", 0, -1));
     }
 
     @Test
     void lrangeWithEndBeyondSizeReturnsTillEnd() {
-        listStore.rpush("mylist", List.of("a", "b", "c"));
+        listStore.rightPush("mylist", List.of("a", "b", "c"));
         assertEquals(List.of("a", "b", "c"), listStore.lRange("mylist", 0, 100));
     }
 
@@ -87,25 +87,55 @@ class ListStoreTest {
 
     @Test
     void lrangeWithStartGreaterThanEndReturnsEmpty() {
-        listStore.rpush("mylist", List.of("a", "b", "c"));
+        listStore.rightPush("mylist", List.of("a", "b", "c"));
         assertEquals(List.of(), listStore.lRange("mylist", 3, 1));
     }
 
     @Test
     void lrangeNegativeStartAndEnd() {
-        listStore.rpush("mylist", List.of("a", "b", "c", "d", "e"));
+        listStore.rightPush("mylist", List.of("a", "b", "c", "d", "e"));
         assertEquals(List.of("d", "e"), listStore.lRange("mylist", -2, -1));
     }
 
     @Test
     void lrangeAllExceptLastTwo() {
-        listStore.rpush("mylist", List.of("a", "b", "c", "d", "e"));
+        listStore.rightPush("mylist", List.of("a", "b", "c", "d", "e"));
         assertEquals(List.of("a", "b", "c"), listStore.lRange("mylist", 0, -3));
     }
 
     @Test
     void lrangeNegativeStartOutOfRangeTreatedAsZero() {
-        listStore.rpush("mylist", List.of("a", "b", "c", "d", "e"));
+        listStore.rightPush("mylist", List.of("a", "b", "c", "d", "e"));
         assertEquals(List.of("a", "b", "c", "d", "e"), listStore.lRange("mylist", -6, -1));
+    }
+
+    @Test
+    void lpushSingleElementReturnsOne() {
+        assertEquals(1, listStore.leftPush("mylist", List.of("blueberry")));
+    }
+
+    @Test
+    void lpushPrependsToFront() {
+        listStore.leftPush("mylist", List.of("blueberry"));
+        listStore.leftPush("mylist", List.of("grape"));
+        assertEquals(List.of("grape", "blueberry"), listStore.lRange("mylist", 0, -1));
+    }
+
+    @Test
+    void lpushMultipleValuesInOneCallReversesOrder() {
+        listStore.leftPush("mylist", List.of("blueberry"));
+        listStore.leftPush("mylist", List.of("grape", "pear"));
+        assertEquals(List.of("pear", "grape", "blueberry"), listStore.lRange("mylist", 0, -1));
+    }
+
+    @Test
+    void lpushReturnsSizeAfterInsert() {
+        listStore.leftPush("mylist", List.of("a"));
+        assertEquals(3, listStore.leftPush("mylist", List.of("b", "c")));
+    }
+
+    @Test
+    void lpushCreatesNewListIfKeyAbsent() {
+        assertEquals(1, listStore.leftPush("newlist", List.of("x")));
     }
 }

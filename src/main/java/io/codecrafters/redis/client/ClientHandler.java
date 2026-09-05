@@ -54,7 +54,8 @@ public class ClientHandler implements Runnable {
                 String value = store.get(args.get(1));
                 out.write(value != null ? RespEncoder.bulkString(value) : RespEncoder.nullBulkString());
             }
-            case "RPUSH" -> out.write(RespEncoder.RespInteger(listStore.rpush(args.get(1), args.subList(2, args.size()))));
+            case "RPUSH" -> out.write(RespEncoder.RespInteger(listStore.rightPush(args.get(1), args.subList(2, args.size()))));
+            case "LPUSH" -> out.write(RespEncoder.RespInteger(listStore.leftPush(args.get(1), args.subList(2, args.size()))));
             case "LRANGE" -> {
                 List<String> result = listStore.lRange(args.get(1), Integer.parseInt(args.get(2)), Integer.parseInt(args.get(3)));
                 out.write(RespEncoder.encodeList(result));

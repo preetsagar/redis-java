@@ -281,4 +281,113 @@ class MainTest {
             assertEquals("*3\r\n$1\r\nb\r\n$1\r\nc\r\n$1\r\nd\r\n", new String(buffer, 0, in.read(buffer)));
         }
     }
+
+    @Test
+    void lpushSingleElementReturnsOne() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write(resp("LPUSH", "lpush-test-1", "blueberry").getBytes());
+            byte[] buffer = new byte[1024];
+            assertEquals(":1\r\n", new String(buffer, 0, client.getInputStream().read(buffer)));
+        }
+    }
+
+    @Test
+    void lpushMultipleValuesPrependsInCorrectOrder() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("LPUSH", "lpush-test-2", "blueberry").getBytes());
+            in.read(buffer); // consume :1
+
+            client.getOutputStream().write(resp("LPUSH", "lpush-test-2", "grape", "pear").getBytes());
+            in.read(buffer); // consume :3
+
+            client.getOutputStream().write(resp("LRANGE", "lpush-test-2", "0", "-1").getBytes());
+            assertEquals("*3\r\n$4\r\npear\r\n$5\r\ngrape\r\n$9\r\nblueberry\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void lpushReturnsSizeAfterEachInsert() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("LPUSH", "lpush-test-3", "a").getBytes());
+            assertEquals(":1\r\n", new String(buffer, 0, in.read(buffer)));
+
+            client.getOutputStream().write(resp("LPUSH", "lpush-test-3", "b", "c").getBytes());
+            assertEquals(":3\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void lpushSingleElementLrangeValidation() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("LPUSH", "lpush-lrange-1", "blueberry").getBytes());
+            in.read(buffer); // consume :1
+
+            client.getOutputStream().write(resp("LRANGE", "lpush-lrange-1", "0", "-1").getBytes());
+            assertEquals("*1\r\n$9\r\nblueberry\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void lpushSequentialInsertsLrangeValidation() throws Exception {
+        // Each LPUSH prepends, so final order is reverse of insertion order
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("LPUSH", "lpush-lrange-2", "a").getBytes());
+            in.read(buffer); // consume :1
+            client.getOutputStream().write(resp("LPUSH", "lpush-lrange-2", "b").getBytes());
+            in.read(buffer); // consume :2
+            client.getOutputStream().write(resp("LPUSH", "lpush-lrange-2", "c").getBytes());
+            in.read(buffer); // consume :3
+
+            client.getOutputStream().write(resp("LRANGE", "lpush-lrange-2", "0", "-1").getBytes());
+            assertEquals("*3\r\n$1\r\nc\r\n$1\r\nb\r\n$1\r\na\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void lpushSubsetLrangeValidation() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("LPUSH", "lpush-lrange-3", "blueberry").getBytes());
+            in.read(buffer);
+            client.getOutputStream().write(resp("LPUSH", "lpush-lrange-3", "grape", "pear").getBytes());
+            in.read(buffer); // list is now [pear, grape, blueberry]
+
+            // fetch only first 2
+            client.getOutputStream().write(resp("LRANGE", "lpush-lrange-3", "0", "1").getBytes());
+            assertEquals("*2\r\n$4\r\npear\r\n$5\r\ngrape\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void lpushThenRpushLrangeValidation() throws Exception {
+        // Mixing LPUSH and RPUSH — verify combined order
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "lpush-lrange-4", "b").getBytes());
+            in.read(buffer);
+            client.getOutputStream().write(resp("LPUSH", "lpush-lrange-4", "a").getBytes());
+            in.read(buffer);
+            client.getOutputStream().write(resp("RPUSH", "lpush-lrange-4", "c").getBytes());
+            in.read(buffer); // list is now [a, b, c]
+
+            client.getOutputStream().write(resp("LRANGE", "lpush-lrange-4", "0", "-1").getBytes());
+            assertEquals("*3\r\n$1\r\na\r\n$1\r\nb\r\n$1\r\nc\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
 }
