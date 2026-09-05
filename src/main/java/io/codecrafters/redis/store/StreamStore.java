@@ -7,6 +7,7 @@ import java.util.Map;
 
 public class StreamStore {
 
+    public record StreamEntry(String id, List<String> fields) {}
     private final Map<String, List<StreamEntry>> data = new HashMap<>();
     private final Map<String, String> lastIds = new HashMap<>();
 
@@ -16,7 +17,9 @@ public class StreamStore {
         if (id.equals("0-0")) {
             throw new IllegalArgumentException("The ID specified in XADD must be greater than 0-0");
         }
-        if (!isGreaterThan(id, lastId)) {
+        if (isWildCardID(id)) {
+            id = generateId(id, lastId);
+        } else if (!isGreaterThan(id, lastId)) {
             throw new IllegalArgumentException("The ID specified in XADD is equal or smaller than the target stream top item");
         }
         data.computeIfAbsent(key, k -> new ArrayList<>()).add(new StreamEntry(id, new ArrayList<>(fields)));
@@ -28,8 +31,6 @@ public class StreamStore {
         return data.containsKey(key);
     }
 
-    public record StreamEntry(String id, List<String> fields) {}
-
     private boolean isGreaterThan(String id, String lastId) {
         String[] last = lastId.split("-");
         String[] current = id.split("-");
@@ -38,5 +39,21 @@ public class StreamStore {
         long currMillis = Long.parseLong(current[0]);
         long currSeq = Long.parseLong(current[1]);
         return currMillis > lastMillis || (currMillis == lastMillis && currSeq > lastSeq);
+    }
+
+    private boolean isWildCardID(String id) {
+        return id.contains("*");
+    }
+
+    private String generateId(String id, String lastId) {
+        String[] lastParts = lastId.split("-");
+        long lastMillis = Long.parseLong(lastParts[0]);
+        long lastSeq = Long.parseLong(lastParts[1]);
+
+        String[] currentParts = id.split("-");
+        long currMillis = Long.parseLong(currentParts[0]);
+
+        long seq = (currMillis == lastMillis) ? lastSeq + 1 : 0;
+        return currMillis + "-" + seq;
     }
 }

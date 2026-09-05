@@ -106,4 +106,57 @@ class StreamStoreTest {
         String id = streamStore.xadd("mystream", "1-2", List.of("b", "2"));
         assertEquals("1-2", id);
     }
+
+    // Wildcard sequence: "<millis>-*"
+
+    @Test
+    void xaddWildcardSequenceOnEmptyStreamStartsAtZero() {
+        String id = streamStore.xadd("mystream", "5-*", List.of("foo", "bar"));
+        assertEquals("5-0", id);
+    }
+
+    @Test
+    void xaddWildcardSequenceIncrementsWhenMillisMatches() {
+        streamStore.xadd("mystream", "5-3", List.of("a", "1"));
+        String id = streamStore.xadd("mystream", "5-*", List.of("b", "2"));
+        assertEquals("5-4", id);
+    }
+
+    @Test
+    void xaddWildcardSequenceResetsToZeroWhenMillisIncreases() {
+        streamStore.xadd("mystream", "0-1", List.of("a", "1"));
+        String id = streamStore.xadd("mystream", "1-*", List.of("b", "2"));
+        assertEquals("1-0", id);
+    }
+
+    @Test
+    void xaddWildcardZeroMillisOnEmptyStreamProducesZeroOne() {
+        // "0-*" on empty stream → last is "0-0" → same millis → seq = 0+1 = 1
+        String id = streamStore.xadd("mystream", "0-*", List.of("foo", "bar"));
+        assertEquals("0-1", id);
+    }
+
+    @Test
+    void xaddWildcardSequenceAfterMultipleEntries() {
+        streamStore.xadd("mystream", "3-0", List.of("a", "1"));
+        streamStore.xadd("mystream", "3-1", List.of("b", "2"));
+        String id = streamStore.xadd("mystream", "3-*", List.of("c", "3"));
+        assertEquals("3-2", id);
+    }
+
+    @Test
+    void xaddWildcardIdIsStoredAndNextExplicitMustBeGreater() {
+        String id = streamStore.xadd("mystream", "2-*", List.of("a", "1")); // generates 2-0
+        assertEquals("2-0", id);
+        assertThrows(IllegalArgumentException.class,
+                () -> streamStore.xadd("mystream", "2-0", List.of("b", "2")));
+    }
+
+    @Test
+    void xaddWildcardDifferentKeysAreIndependent() {
+        streamStore.xadd("s1", "5-3", List.of("a", "1"));
+        // s2 is empty, so "5-*" should produce "5-0"
+        String id = streamStore.xadd("s2", "5-*", List.of("b", "2"));
+        assertEquals("5-0", id);
+    }
 }

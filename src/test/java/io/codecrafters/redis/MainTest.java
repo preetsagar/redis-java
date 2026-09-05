@@ -744,6 +744,69 @@ class MainTest {
     }
 
     @Test
+    void xaddWildcardSequenceOnEmptyStreamReturnsZero() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write(resp("XADD", "xadd-wc-1", "5-*", "foo", "bar").getBytes());
+            byte[] buffer = new byte[1024];
+            assertEquals("$3\r\n5-0\r\n", new String(buffer, 0, client.getInputStream().read(buffer)));
+        }
+    }
+
+    @Test
+    void xaddWildcardZeroMillisOnEmptyStreamReturnsZeroOne() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write(resp("XADD", "xadd-wc-2", "0-*", "foo", "bar").getBytes());
+            byte[] buffer = new byte[1024];
+            assertEquals("$3\r\n0-1\r\n", new String(buffer, 0, client.getInputStream().read(buffer)));
+        }
+    }
+
+    @Test
+    void xaddWildcardSequenceIncrementsWhenMillisMatches() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("XADD", "xadd-wc-3", "3-2", "foo", "bar").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("XADD", "xadd-wc-3", "3-*", "baz", "qux").getBytes());
+            assertEquals("$3\r\n3-3\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void xaddWildcardSequenceResetsWhenMillisIncreases() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("XADD", "xadd-wc-4", "0-1", "foo", "bar").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("XADD", "xadd-wc-4", "1-*", "baz", "qux").getBytes());
+            assertEquals("$3\r\n1-0\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void xaddWildcardIdIsUsedForSubsequentValidation() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            // generates 2-0
+            client.getOutputStream().write(resp("XADD", "xadd-wc-5", "2-*", "foo", "bar").getBytes());
+            in.read(buffer);
+
+            // 2-0 is now the last ID, so explicit 2-0 must be rejected
+            client.getOutputStream().write(resp("XADD", "xadd-wc-5", "2-0", "baz", "qux").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+            assertTrue(response.startsWith("-ERR"), "Expected error for duplicate ID, got: " + response);
+        }
+    }
+
+    @Test
     void typeReturnsNoneForExpiredKey() throws Exception {
         try (Socket client = new Socket("localhost", PORT)) {
             InputStream in = client.getInputStream();
