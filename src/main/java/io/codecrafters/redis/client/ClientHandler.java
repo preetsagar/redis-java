@@ -84,8 +84,12 @@ public class ClientHandler implements Runnable {
                 }
             }
             case "XADD" -> {
-                String id = streamStore.xadd(args.get(1), args.get(2), args.subList(3, args.size()));
-                out.write(RespEncoder.bulkString(id));
+                try {
+                    String id = streamStore.xadd(args.get(1), args.get(2), args.subList(3, args.size()));
+                    out.write(RespEncoder.bulkString(id));
+                } catch (IllegalArgumentException e) {
+                    out.write(RespEncoder.error(e.getMessage()));
+                }
             }
             case "TYPE" -> {
                 String key = args.get(1);

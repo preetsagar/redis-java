@@ -660,6 +660,90 @@ class MainTest {
     }
 
     @Test
+    void xaddRejectsSameId() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("XADD", "xadd-val-1", "1-1", "foo", "bar").getBytes());
+            in.read(buffer); // consume "1-1"
+
+            client.getOutputStream().write(resp("XADD", "xadd-val-1", "1-1", "bar", "baz").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+            assertTrue(response.startsWith("-ERR"), "Expected error for duplicate ID, got: " + response);
+        }
+    }
+
+    @Test
+    void xaddRejectsSmallerMillis() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("XADD", "xadd-val-2", "2-0", "foo", "bar").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("XADD", "xadd-val-2", "1-0", "bar", "baz").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+            assertTrue(response.startsWith("-ERR"), "Expected error for smaller millis, got: " + response);
+        }
+    }
+
+    @Test
+    void xaddRejectsSmallerSequenceWithSameMillis() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("XADD", "xadd-val-3", "1-5", "foo", "bar").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("XADD", "xadd-val-3", "1-3", "bar", "baz").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+            assertTrue(response.startsWith("-ERR"), "Expected error for smaller sequence, got: " + response);
+        }
+    }
+
+    @Test
+    void xaddRejectsZeroZeroId() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write(resp("XADD", "xadd-val-4", "0-0", "foo", "bar").getBytes());
+            byte[] buffer = new byte[1024];
+            String response = new String(buffer, 0, client.getInputStream().read(buffer));
+            assertTrue(response.startsWith("-ERR"), "Expected error for 0-0 ID, got: " + response);
+        }
+    }
+
+    @Test
+    void xaddAcceptsGreaterSequenceWithSameMillis() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("XADD", "xadd-val-5", "1-1", "foo", "bar").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("XADD", "xadd-val-5", "1-2", "bar", "baz").getBytes());
+            assertEquals("$3\r\n1-2\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void xaddDifferentKeysHaveIndependentIds() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("XADD", "xadd-ind-1", "5-0", "foo", "bar").getBytes());
+            in.read(buffer);
+
+            // Different key can start from 1-0 regardless of xadd-ind-1's last ID
+            client.getOutputStream().write(resp("XADD", "xadd-ind-2", "1-0", "foo", "bar").getBytes());
+            assertEquals("$3\r\n1-0\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
     void typeReturnsNoneForExpiredKey() throws Exception {
         try (Socket client = new Socket("localhost", PORT)) {
             InputStream in = client.getInputStream();

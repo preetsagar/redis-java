@@ -64,4 +64,46 @@ class StreamStoreTest {
         String id = streamStore.xadd("mystream", "1-0", List.of("temperature", "36", "humidity", "95"));
         assertEquals("1-0", id);
     }
+
+    @Test
+    void xaddDifferentKeysHaveIndependentLastIds() {
+        streamStore.xadd("stream1", "5-0", List.of("k", "v"));
+        // stream2 can start from 1-0 independently
+        String id = streamStore.xadd("stream2", "1-0", List.of("k", "v"));
+        assertEquals("1-0", id);
+    }
+
+    @Test
+    void xaddRejectsSameId() {
+        streamStore.xadd("mystream", "1-1", List.of("foo", "bar"));
+        assertThrows(IllegalArgumentException.class,
+                () -> streamStore.xadd("mystream", "1-1", List.of("bar", "baz")));
+    }
+
+    @Test
+    void xaddRejectsSmallerMillis() {
+        streamStore.xadd("mystream", "1-1", List.of("foo", "bar"));
+        assertThrows(IllegalArgumentException.class,
+                () -> streamStore.xadd("mystream", "0-2", List.of("bar", "baz")));
+    }
+
+    @Test
+    void xaddRejectsZeroZeroId() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> streamStore.xadd("mystream", "0-0", List.of("foo", "bar")));
+        assertTrue(ex.getMessage().contains("0-0"));
+    }
+
+    @Test
+    void xaddMinimumValidIdIsZeroOne() {
+        String id = streamStore.xadd("mystream", "0-1", List.of("foo", "bar"));
+        assertEquals("0-1", id);
+    }
+
+    @Test
+    void xaddAcceptsGreaterSequenceWithSameMillis() {
+        streamStore.xadd("mystream", "1-1", List.of("a", "1"));
+        String id = streamStore.xadd("mystream", "1-2", List.of("b", "2"));
+        assertEquals("1-2", id);
+    }
 }
