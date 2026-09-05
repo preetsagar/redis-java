@@ -628,6 +628,38 @@ class MainTest {
     }
 
     @Test
+    void xaddReturnsEntryId() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write(resp("XADD", "xadd-test-1", "0-1", "foo", "bar").getBytes());
+            byte[] buffer = new byte[1024];
+            assertEquals("$3\r\n0-1\r\n", new String(buffer, 0, client.getInputStream().read(buffer)));
+        }
+    }
+
+    @Test
+    void xaddReturnsFullId() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write(resp("XADD", "xadd-test-2", "1526919030474-0", "temperature", "36", "humidity", "95").getBytes());
+            byte[] buffer = new byte[1024];
+            assertEquals("$15\r\n1526919030474-0\r\n", new String(buffer, 0, client.getInputStream().read(buffer)));
+        }
+    }
+
+    @Test
+    void typeReturnsStreamForStreamKey() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("XADD", "xadd-type-test", "1-0", "foo", "bar").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("TYPE", "xadd-type-test").getBytes());
+            assertEquals("+stream\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
     void typeReturnsNoneForExpiredKey() throws Exception {
         try (Socket client = new Socket("localhost", PORT)) {
             InputStream in = client.getInputStream();

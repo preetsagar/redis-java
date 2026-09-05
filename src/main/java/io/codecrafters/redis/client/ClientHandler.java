@@ -4,6 +4,7 @@ import io.codecrafters.redis.protocol.RespEncoder;
 import io.codecrafters.redis.protocol.RespParser;
 import io.codecrafters.redis.store.ListStore;
 import io.codecrafters.redis.store.Store;
+import io.codecrafters.redis.store.StreamStore;
 
 import java.io.*;
 import java.net.Socket;
@@ -14,11 +15,13 @@ public class ClientHandler implements Runnable {
     private final Socket client;
     private final Store store;
     private final ListStore listStore;
+    private final StreamStore streamStore;
 
-    public ClientHandler(Socket client, Store store, ListStore listStore) {
+    public ClientHandler(Socket client, Store store, ListStore listStore, StreamStore streamStore) {
         this.client = client;
         this.store = store;
         this.listStore = listStore;
+        this.streamStore = streamStore;
     }
 
     @Override
@@ -80,6 +83,10 @@ public class ClientHandler implements Runnable {
                     out.write(RespEncoder.emptyList());
                 }
             }
+            case "XADD" -> {
+                String id = streamStore.xadd(args.get(1), args.get(2), args.subList(3, args.size()));
+                out.write(RespEncoder.bulkString(id));
+            }
             case "TYPE" -> {
                 String key = args.get(1);
                 String type;
@@ -87,6 +94,8 @@ public class ClientHandler implements Runnable {
                     type = "string";
                 } else if (listStore.dataSize(key) > 0) {
                     type = "list";
+                } else if (streamStore.hasKey(key)) {
+                    type = "stream";
                 } else {
                     type = "none";
                 }
