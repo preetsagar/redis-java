@@ -50,9 +50,14 @@ public class StreamStore {
         long lastMillis = Long.parseLong(lastParts[0]);
         long lastSeq = Long.parseLong(lastParts[1]);
 
-        String[] currentParts = id.split("-");
-        long currMillis = Long.parseLong(currentParts[0]);
+        if (id.equals("*")) {
+            long currMillis = System.currentTimeMillis();
+            long seq = (currMillis == lastMillis) ? lastSeq + 1 : 0;
+            return currMillis + "-" + seq;
+        }
 
+        // Format: "<millis>-*"
+        long currMillis = Long.parseLong(id.split("-")[0]);
         long seq = (currMillis == lastMillis) ? lastSeq + 1 : 0;
         return currMillis + "-" + seq;
     }

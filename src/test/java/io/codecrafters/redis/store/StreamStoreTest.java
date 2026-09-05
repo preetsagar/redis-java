@@ -159,4 +159,53 @@ class StreamStoreTest {
         String id = streamStore.xadd("s2", "5-*", List.of("b", "2"));
         assertEquals("5-0", id);
     }
+
+    // Full wildcard: "*"
+
+    @Test
+    void xaddFullWildcardReturnsMillisAndZeroSequence() {
+        long before = System.currentTimeMillis();
+        String id = streamStore.xadd("mystream", "*", List.of("foo", "bar"));
+        long after = System.currentTimeMillis();
+
+        String[] parts = id.split("-");
+        assertEquals(2, parts.length);
+        long millis = Long.parseLong(parts[0]);
+        long seq = Long.parseLong(parts[1]);
+
+        assertTrue(millis >= before && millis <= after, "Millis should be current time");
+        assertEquals(0, seq);
+    }
+
+    @Test
+    void xaddFullWildcardIncrementsSequenceIfSameMillis() {
+        String first = streamStore.xadd("mystream", "*", List.of("a", "1"));
+        long firstMillis = Long.parseLong(first.split("-")[0]);
+
+        // Force same-millis scenario by using partial wildcard with same timestamp
+        String second = streamStore.xadd("mystream", firstMillis + "-*", List.of("b", "2"));
+        long secondSeq = Long.parseLong(second.split("-")[1]);
+        assertEquals(1, secondSeq);
+    }
+
+    @Test
+    void xaddFullWildcardGeneratedIdIsStoredForValidation() {
+        String id = streamStore.xadd("mystream", "*", List.of("foo", "bar"));
+        String[] parts = id.split("-");
+        long millis = Long.parseLong(parts[0]);
+        long seq = Long.parseLong(parts[1]);
+
+        // Explicit ID equal to the generated one must be rejected
+        assertThrows(IllegalArgumentException.class,
+                () -> streamStore.xadd("mystream", millis + "-" + seq, List.of("baz", "qux")));
+    }
+
+    @Test
+    void xaddFullWildcardDifferentKeysAreIndependent() {
+        streamStore.xadd("s1", "*", List.of("a", "1"));
+        // s2 should generate its own ID independently
+        String id = streamStore.xadd("s2", "*", List.of("b", "2"));
+        assertNotNull(id);
+        assertTrue(id.contains("-"));
+    }
 }

@@ -807,6 +807,68 @@ class MainTest {
     }
 
     @Test
+    void xaddFullWildcardReturnsValidId() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            long before = System.currentTimeMillis();
+            client.getOutputStream().write(resp("XADD", "xadd-fw-1", "*", "foo", "bar").getBytes());
+            long after = System.currentTimeMillis();
+
+            byte[] buffer = new byte[1024];
+            String response = new String(buffer, 0, client.getInputStream().read(buffer));
+
+            // Response is a bulk string: $<len>\r\n<id>\r\n
+            assertTrue(response.startsWith("$"), "Expected bulk string, got: " + response);
+            String id = response.split("\r\n")[1];
+            String[] parts = id.split("-");
+            assertEquals(2, parts.length);
+            long millis = Long.parseLong(parts[0]);
+            long seq = Long.parseLong(parts[1]);
+            assertTrue(millis >= before && millis <= after, "Millis should be within test window");
+            assertEquals(0, seq);
+        }
+    }
+
+    @Test
+    void xaddFullWildcardGeneratedIdIsUsedForSubsequentValidation() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("XADD", "xadd-fw-2", "*", "foo", "bar").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+            String generatedId = response.split("\r\n")[1];
+
+            // Explicit ID equal to the generated one must be rejected
+            client.getOutputStream().write(resp("XADD", "xadd-fw-2", generatedId, "baz", "qux").getBytes());
+            String error = new String(buffer, 0, in.read(buffer));
+            assertTrue(error.startsWith("-ERR"), "Expected error for duplicate ID, got: " + error);
+        }
+    }
+
+    @Test
+    void xaddFullWildcardTwoConsecutiveIdsAreOrdered() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("XADD", "xadd-fw-3", "*", "a", "1").getBytes());
+            String first = new String(buffer, 0, in.read(buffer)).split("\r\n")[1];
+
+            client.getOutputStream().write(resp("XADD", "xadd-fw-3", "*", "b", "2").getBytes());
+            String second = new String(buffer, 0, in.read(buffer)).split("\r\n")[1];
+
+            String[] fp = first.split("-");
+            String[] sp = second.split("-");
+            long firstMillis = Long.parseLong(fp[0]), firstSeq = Long.parseLong(fp[1]);
+            long secondMillis = Long.parseLong(sp[0]), secondSeq = Long.parseLong(sp[1]);
+
+            boolean ordered = secondMillis > firstMillis ||
+                    (secondMillis == firstMillis && secondSeq > firstSeq);
+            assertTrue(ordered, "Second ID must be greater than first: " + first + " vs " + second);
+        }
+    }
+
+    @Test
     void typeReturnsNoneForExpiredKey() throws Exception {
         try (Socket client = new Socket("localhost", PORT)) {
             InputStream in = client.getInputStream();
