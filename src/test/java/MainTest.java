@@ -97,4 +97,64 @@ class MainTest {
             assertEquals("$3\r\nhey\r\n", response, "Server should echo back the message as a bulk string");
         }
     }
+
+    @Test
+    void setAndGetValue() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("SET", "foo", "bar").getBytes());
+            String setResponse = new String(buffer, 0, in.read(buffer));
+            assertEquals("+OK\r\n", setResponse);
+
+            client.getOutputStream().write(resp("GET", "foo").getBytes());
+            String getResponse = new String(buffer, 0, in.read(buffer));
+            assertEquals("$3\r\nbar\r\n", getResponse);
+        }
+    }
+
+    @Test
+    void getMissingKeyReturnsNullBulkString() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write(resp("GET", "missing").getBytes());
+            byte[] buffer = new byte[1024];
+            String response = new String(buffer, 0, client.getInputStream().read(buffer));
+            assertEquals("$-1\r\n", response);
+        }
+    }
+
+    @Test
+    void setWithPxExpiresKey() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("SET", "foo", "bar", "PX", "100").getBytes());
+            in.read(buffer); // consume +OK
+
+            Thread.sleep(150);
+
+            client.getOutputStream().write(resp("GET", "foo").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+            assertEquals("$-1\r\n", response, "Key should have expired");
+        }
+    }
+
+    @Test
+    void setWithExExpiresKey() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("SET", "foo", "bar", "EX", "1").getBytes());
+            in.read(buffer); // consume +OK
+
+            Thread.sleep(1100);
+
+            client.getOutputStream().write(resp("GET", "foo").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+            assertEquals("$-1\r\n", response, "Key should have expired after 1 second");
+        }
+    }
 }

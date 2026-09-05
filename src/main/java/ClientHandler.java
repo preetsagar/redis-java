@@ -1,15 +1,14 @@
 import java.io.*;
 import java.net.Socket;
-import java.util.HashMap;
 
 public class ClientHandler implements Runnable {
 
     private final Socket client;
-    private HashMap<String, String> hashMap;
+    private final Store store;
 
-    public ClientHandler(Socket client) {
+    public ClientHandler(Socket client, Store store) {
         this.client = client;
-        hashMap = new HashMap<>();
+        this.store = store;
     }
 
     @Override
@@ -29,31 +28,23 @@ public class ClientHandler implements Runnable {
 
     private void handleCommand(String[] args, OutputStream out) throws IOException {
         switch (args[0].toUpperCase()) {
-            case "PING" -> out.write("+PONG\r\n".getBytes());
-            case "ECHO" -> {
-                String msg = args[1];
-                out.write(("$" + msg.length() + "\r\n" + msg + "\r\n").getBytes());
-            }
+            case "PING" -> out.write(RespEncoder.simpleString("PONG"));
+            case "ECHO" -> out.write(RespEncoder.bulkString(args[1]));
             case "SET" -> {
-                hashMap.put(args[1], args[2]);
-                out.write(getSimpleString("OK"));
+                if (args.length > 3 && args[3].equalsIgnoreCase("EX")) {
+                    store.set(args[1], args[2], Long.parseLong(args[4]) * 1000);
+                } else if (args.length > 3 && args[3].equalsIgnoreCase("PX")) {
+                    store.set(args[1], args[2], Long.parseLong(args[4]));
+                } else {
+                    store.set(args[1], args[2]);
+                }
+                out.write(RespEncoder.simpleString("OK"));
             }
             case "GET" -> {
-                out.write(encodeResponse(hashMap.get(args[1])));
+                String value = store.get(args[1]);
+                out.write(value != null ? RespEncoder.bulkString(value) : RespEncoder.nullBulkString());
             }
-            default -> out.write(("-ERR unknown command '" + args[0] + "'\r\n").getBytes());
+            default -> out.write(RespEncoder.error("unknown command '" + args[0] + "'"));
         }
-    }
-
-    private static byte[] encodeResponse(String str) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("$").append(str.length()).append("\r\n").append(str).append("\r\n");
-        return sb.toString().getBytes();
-    }
-
-    private  static byte[] getSimpleString(String str) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("+").append(str).append("\r\n");
-        return sb.toString().getBytes();
     }
 }
