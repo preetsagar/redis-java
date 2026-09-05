@@ -162,4 +162,36 @@ class ListStoreTest {
         listStore.leftPush("mylist", List.of("c"));
         assertEquals(3, listStore.dataSize("mylist"));
     }
+
+    @Test
+    void lpopReturnsFirstElement() {
+        listStore.rightPush("mylist", List.of("a", "b", "c"));
+        assertEquals("a", listStore.leftPop("mylist"));
+    }
+
+    @Test
+    void lpopRemovesElement() {
+        listStore.rightPush("mylist", List.of("a", "b", "c"));
+        listStore.leftPop("mylist");
+        assertEquals(List.of("b", "c"), listStore.lRange("mylist", 0, -1));
+    }
+
+    @Test
+    void lpopOnEmptyListReturnsNull() {
+        listStore.rightPush("mylist", List.of("a"));
+        listStore.leftPop("mylist");
+        assertNull(listStore.leftPop("mylist"));
+    }
+
+    @Test
+    void lpopOnMissingKeyReturnsNull() {
+        assertNull(listStore.leftPop("missing"));
+    }
+
+    @Test
+    void lpopDecreasesSize() {
+        listStore.rightPush("mylist", List.of("a", "b", "c"));
+        listStore.leftPop("mylist");
+        assertEquals(2, listStore.dataSize("mylist"));
+    }
 }

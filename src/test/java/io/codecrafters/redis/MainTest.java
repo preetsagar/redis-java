@@ -443,4 +443,60 @@ class MainTest {
             assertEquals(":3\r\n", new String(buffer, 0, in.read(buffer)));
         }
     }
+
+    @Test
+    void lpopReturnsFirstElement() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "lpop-test-1", "a", "b", "c").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("LPOP", "lpop-test-1").getBytes());
+            assertEquals("$1\r\na\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void lpopRemovesElementFromList() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "lpop-test-2", "a", "b", "c").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("LPOP", "lpop-test-2").getBytes());
+            in.read(buffer); // consume "a"
+
+            client.getOutputStream().write(resp("LRANGE", "lpop-test-2", "0", "-1").getBytes());
+            assertEquals("*2\r\n$1\r\nb\r\n$1\r\nc\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void lpopOnMissingKeyReturnsNullBulkString() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write(resp("LPOP", "lpop-missing").getBytes());
+            byte[] buffer = new byte[1024];
+            assertEquals("$-1\r\n", new String(buffer, 0, client.getInputStream().read(buffer)));
+        }
+    }
+
+    @Test
+    void lpopOnEmptyListReturnsNullBulkString() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "lpop-test-3", "a").getBytes());
+            in.read(buffer);
+            client.getOutputStream().write(resp("LPOP", "lpop-test-3").getBytes());
+            in.read(buffer); // remove "a"
+
+            client.getOutputStream().write(resp("LPOP", "lpop-test-3").getBytes());
+            assertEquals("$-1\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
 }

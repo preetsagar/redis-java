@@ -37,4 +37,11 @@ public class ListStore {
         List<String> list = data.get(key);
         return list == null ? 0 : list.size();
     }
+
+    // Returns null if list is empty or doesn't exist.
+    public String leftPop(String key) {
+        List<String> list = data.get(key);
+        if (list == null || list.isEmpty()) return null;
+        return list.remove(0);
+    }
 }
