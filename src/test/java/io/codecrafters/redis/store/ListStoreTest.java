@@ -18,31 +18,35 @@ class ListStoreTest {
 
     @Test
     void rpushReturnsOneForFirstInsert() {
-        assertEquals(1, listStore.rpush("mylist", "orange"));
+        assertEquals(1, listStore.rpush("mylist", List.of("orange")));
     }
 
     @Test
     void rpushAppendsAndReturnsSize() {
-        listStore.rpush("mylist", "orange");
-        assertEquals(2, listStore.rpush("mylist", "mango"));
+        listStore.rpush("mylist", List.of("orange"));
+        assertEquals(2, listStore.rpush("mylist", List.of("mango")));
     }
 
     @Test
     void rpushCreatesNewListIfKeyAbsent() {
-        assertEquals(1, listStore.rpush("newlist", "value"));
+        assertEquals(1, listStore.rpush("newlist", List.of("value")));
     }
 
     @Test
     void rpushMultipleValuesOnSameKey() {
-        listStore.rpush("mylist", "a");
-        listStore.rpush("mylist", "b");
-        assertEquals(3, listStore.rpush("mylist", "c"));
+        listStore.rpush("mylist", List.of("a"));
+        listStore.rpush("mylist", List.of("b"));
+        assertEquals(3, listStore.rpush("mylist", List.of("c")));
     }
 
     @Test
     void rpushDifferentKeysAreIndependent() {
-        listStore.rpush("list1", "a");
-        listStore.rpush("list1", "b");
-        assertEquals(1, listStore.rpush("list2", "x"));
+        listStore.rpush("list1", List.of("a", "b"));
+        assertEquals(1, listStore.rpush("list2", List.of("x")));
+    }
+
+    @Test
+    void rpushMultipleValuesInOneCall() {
+        assertEquals(3, listStore.rpush("mylist", List.of("a", "b", "c")));
     }
 }

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -16,38 +17,38 @@ class RespParserTest {
 
     @Test
     void parsesPingCommand() throws IOException {
-        String[] args = parserFor("*1\r\n$4\r\nPING\r\n").readCommand();
+        List<String> args = parserFor("*1\r\n$4\r\nPING\r\n").readCommand();
         assertNotNull(args);
-        assertEquals(1, args.length);
-        assertEquals("PING", args[0]);
+        assertEquals(1, args.size());
+        assertEquals("PING", args.get(0));
     }
 
     @Test
     void parsesEchoCommand() throws IOException {
-        String[] args = parserFor("*2\r\n$4\r\nECHO\r\n$3\r\nhey\r\n").readCommand();
+        List<String> args = parserFor("*2\r\n$4\r\nECHO\r\n$3\r\nhey\r\n").readCommand();
         assertNotNull(args);
-        assertEquals(2, args.length);
-        assertEquals("ECHO", args[0]);
-        assertEquals("hey", args[1]);
+        assertEquals(2, args.size());
+        assertEquals("ECHO", args.get(0));
+        assertEquals("hey", args.get(1));
     }
 
     @Test
     void parsesSetCommand() throws IOException {
-        String[] args = parserFor("*3\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$3\r\nbar\r\n").readCommand();
+        List<String> args = parserFor("*3\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$3\r\nbar\r\n").readCommand();
         assertNotNull(args);
-        assertEquals(3, args.length);
-        assertEquals("SET", args[0]);
-        assertEquals("foo", args[1]);
-        assertEquals("bar", args[2]);
+        assertEquals(3, args.size());
+        assertEquals("SET", args.get(0));
+        assertEquals("foo", args.get(1));
+        assertEquals("bar", args.get(2));
     }
 
     @Test
     void parsesGetCommand() throws IOException {
-        String[] args = parserFor("*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n").readCommand();
+        List<String> args = parserFor("*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n").readCommand();
         assertNotNull(args);
-        assertEquals(2, args.length);
-        assertEquals("GET", args[0]);
-        assertEquals("foo", args[1]);
+        assertEquals(2, args.size());
+        assertEquals("GET", args.get(0));
+        assertEquals("foo", args.get(1));
     }
 
     @Test
@@ -59,11 +60,11 @@ class RespParserTest {
     void parsesMultipleCommandsSequentially() throws IOException {
         RespParser parser = parserFor("*1\r\n$4\r\nPING\r\n*2\r\n$4\r\nECHO\r\n$5\r\nhello\r\n");
 
-        String[] first = parser.readCommand();
-        assertEquals("PING", first[0]);
+        List<String> first = parser.readCommand();
+        assertEquals("PING", first.get(0));
 
-        String[] second = parser.readCommand();
-        assertEquals("ECHO", second[0]);
-        assertEquals("hello", second[1]);
+        List<String> second = parser.readCommand();
+        assertEquals("ECHO", second.get(0));
+        assertEquals("hello", second.get(1));
     }
 }

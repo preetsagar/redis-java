@@ -8,9 +8,9 @@ public class ListStore {
 
     private final HashMap<String, List<String>> data = new HashMap<>();
 
-    public int rpush(String key, String value) {
+    public int rpush(String key, List<String> values) {
         List<String> list = data.computeIfAbsent(key, k -> new ArrayList<>());
-        list.add(value);
+        list.addAll(values);
         return list.size();
     }
 }

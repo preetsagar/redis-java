@@ -7,6 +7,7 @@ import io.codecrafters.redis.store.Store;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.List;
 
 public class ClientHandler implements Runnable {
 
@@ -26,7 +27,7 @@ public class ClientHandler implements Runnable {
              BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
              OutputStream out = client.getOutputStream()) {
             RespParser parser = new RespParser(in);
-            String[] args;
+            List<String> args;
             while ((args = parser.readCommand()) != null) {
                 handleCommand(args, out);
             }
@@ -35,26 +36,26 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    private void handleCommand(String[] args, OutputStream out) throws IOException {
-        switch (args[0].toUpperCase()) {
+    private void handleCommand(List<String> args, OutputStream out) throws IOException {
+        switch (args.get(0).toUpperCase()) {
             case "PING" -> out.write(RespEncoder.simpleString("PONG"));
-            case "ECHO" -> out.write(RespEncoder.bulkString(args[1]));
+            case "ECHO" -> out.write(RespEncoder.bulkString(args.get(1)));
             case "SET" -> {
-                if (args.length > 3 && args[3].equalsIgnoreCase("EX")) {
-                    store.set(args[1], args[2], Long.parseLong(args[4]) * 1000);
-                } else if (args.length > 3 && args[3].equalsIgnoreCase("PX")) {
-                    store.set(args[1], args[2], Long.parseLong(args[4]));
+                if (args.size() > 3 && args.get(3).equalsIgnoreCase("EX")) {
+                    store.set(args.get(1), args.get(2), Long.parseLong(args.get(4)) * 1000);
+                } else if (args.size() > 3 && args.get(3).equalsIgnoreCase("PX")) {
+                    store.set(args.get(1), args.get(2), Long.parseLong(args.get(4)));
                 } else {
-                    store.set(args[1], args[2]);
+                    store.set(args.get(1), args.get(2));
                 }
                 out.write(RespEncoder.simpleString("OK"));
             }
             case "GET" -> {
-                String value = store.get(args[1]);
+                String value = store.get(args.get(1));
                 out.write(value != null ? RespEncoder.bulkString(value) : RespEncoder.nullBulkString());
             }
-            case "RPUSH" -> out.write(RespEncoder.RespInteger(listStore.rpush(args[1], args[2])));
-            default -> out.write(RespEncoder.error("unknown command '" + args[0] + "'"));
+            case "RPUSH" -> out.write(RespEncoder.RespInteger(listStore.rpush(args.get(1), args.subList(2, args.size()))));
+            default -> out.write(RespEncoder.error("unknown command '" + args.get(0) + "'"));
         }
     }
 }
