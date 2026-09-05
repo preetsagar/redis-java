@@ -72,7 +72,8 @@ public class ClientHandler implements Runnable {
             }
             case "BLPOP" -> {
                 try {
-                    List<String> result = listStore.blockedLeftPop(args.get(1), Long.parseLong(args.get(2)));
+                    long timeoutMillis = (long)(Double.parseDouble(args.get(2)) * 1000);
+                    List<String> result = listStore.blockedLeftPop(args.get(1), timeoutMillis);
                     out.write(result.isEmpty() ? RespEncoder.emptyList() : RespEncoder.encodeList(result));
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();

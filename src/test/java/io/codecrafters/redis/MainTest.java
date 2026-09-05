@@ -562,7 +562,7 @@ class MainTest {
     @Test
     void blpopTimesOutOnEmptyList() throws Exception {
         try (Socket client = new Socket("localhost", PORT)) {
-            client.getOutputStream().write(resp("BLPOP", "blpop-test-2", "100").getBytes());
+            client.getOutputStream().write(resp("BLPOP", "blpop-test-2", "0.1").getBytes());
             client.setSoTimeout(500);
             byte[] buffer = new byte[1024];
             int bytesRead = client.getInputStream().read(buffer);
@@ -576,7 +576,7 @@ class MainTest {
              Socket pusher = new Socket("localhost", PORT)) {
 
             // blocker sends BLPOP with 2 second timeout
-            blocker.getOutputStream().write(resp("BLPOP", "blpop-test-3", "2000").getBytes());
+            blocker.getOutputStream().write(resp("BLPOP", "blpop-test-3", "2").getBytes());
 
             // pusher waits 200ms then pushes
             Thread.sleep(200);
