@@ -2,10 +2,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
-import java.net.ServerSocket;
+import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -13,53 +12,26 @@ class MainTest {
 
     private static final int PORT = 6379;
     private Thread serverThread;
-    private ServerSocket serverSocket;
 
     @BeforeEach
-    void startServer() throws Exception {
-        serverSocket = new ServerSocket(PORT);
-        serverSocket.setReuseAddress(true);
-
-        // Run the server accept loop in a background thread (mirrors Main behaviour)
-        serverThread = new Thread(() -> {
-            try {
-                while (true) {
-                    Socket client = serverSocket.accept();
-                    new Thread(() -> {
-                        try (client) {
-                            byte[] buffer = new byte[1024];
-                            int bytesRead;
-                            while ((bytesRead = client.getInputStream().read(buffer)) > 0) {
-                                System.out.println("Request: " + new String(buffer, 0, bytesRead));
-                                client.getOutputStream().write("+PONG\r\n".getBytes());
-                            }
-                        } catch (IOException e) {
-                            // Expected on client disconnect
-                        }
-                    }).start();
-                }
-            } catch (IOException e) {
-                // Expected when we shut the server down in @AfterEach
-            }
-        });
+    void startServer() {
+        serverThread = new Thread(() -> new RedisServer(PORT).start());
         serverThread.setDaemon(true);
         serverThread.start();
     }
 
     @AfterEach
     void stopServer() throws Exception {
-        if (serverSocket != null && !serverSocket.isClosed()) {
-            serverSocket.close();
-        }
+        serverThread.interrupt();
         serverThread.join(1000);
     }
 
 
     @Test
     void serverBindsToPort6379() throws Exception {
-        // If the server started without throwing, it successfully bound to 6379
-        assertFalse(serverSocket.isClosed(), "ServerSocket should be open and bound");
-        assertEquals(PORT, serverSocket.getLocalPort(), "Server should be listening on port 6379");
+        try (Socket client = new Socket("localhost", PORT)) {
+            assertEquals(PORT, client.getPort(), "Server should be listening on port " + PORT);
+        }
     }
 
     @Test
