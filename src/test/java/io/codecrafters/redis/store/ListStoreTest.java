@@ -194,4 +194,28 @@ class ListStoreTest {
         listStore.leftPop("mylist");
         assertEquals(2, listStore.dataSize("mylist"));
     }
+
+    @Test
+    void lpopWithCountReturnsElements() {
+        listStore.rightPush("mylist", List.of("a", "b", "c", "d"));
+        assertEquals(List.of("a", "b"), listStore.leftPop("mylist", 2));
+    }
+
+    @Test
+    void lpopWithCountRemovesElements() {
+        listStore.rightPush("mylist", List.of("a", "b", "c"));
+        listStore.leftPop("mylist", 2);
+        assertEquals(List.of("c"), listStore.lRange("mylist", 0, -1));
+    }
+
+    @Test
+    void lpopWithCountGreaterThanSizeReturnsAll() {
+        listStore.rightPush("mylist", List.of("a", "b"));
+        assertEquals(List.of("a", "b"), listStore.leftPop("mylist", 10));
+    }
+
+    @Test
+    void lpopWithCountOnMissingKeyReturnsEmpty() {
+        assertEquals(List.of(), listStore.leftPop("missing", 3));
+    }
 }

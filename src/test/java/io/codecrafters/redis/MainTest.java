@@ -499,4 +499,49 @@ class MainTest {
             assertEquals("$-1\r\n", new String(buffer, 0, in.read(buffer)));
         }
     }
+
+    @Test
+    void lpopWithCountReturnsArray() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "lpop-test-4", "a", "b", "c", "d").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("LPOP", "lpop-test-4", "2").getBytes());
+            assertEquals("*2\r\n$1\r\na\r\n$1\r\nb\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void lpopWithCountRemovesElements() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "lpop-test-5", "a", "b", "c").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("LPOP", "lpop-test-5", "2").getBytes());
+            in.read(buffer); // consume [a, b]
+
+            client.getOutputStream().write(resp("LRANGE", "lpop-test-5", "0", "-1").getBytes());
+            assertEquals("*1\r\n$1\r\nc\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void lpopWithCountGreaterThanSizeReturnsAll() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "lpop-test-6", "a", "b").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("LPOP", "lpop-test-6", "10").getBytes());
+            assertEquals("*2\r\n$1\r\na\r\n$1\r\nb\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
 }

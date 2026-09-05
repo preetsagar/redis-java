@@ -44,4 +44,14 @@ public class ListStore {
         if (list == null || list.isEmpty()) return null;
         return list.remove(0);
     }
+
+    // Returns up to count elements from the head, or empty list if key doesn't exist.
+    public List<String> leftPop(String key, int count) {
+        List<String> list = data.get(key);
+        if (list == null || list.isEmpty()) return new ArrayList<>();
+        int toRemove = Math.min(count, list.size());
+        List<String> removed = new ArrayList<>(list.subList(0, toRemove));
+        list.subList(0, toRemove).clear();
+        return removed;
+    }
 }

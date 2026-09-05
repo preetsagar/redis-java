@@ -62,8 +62,13 @@ public class ClientHandler implements Runnable {
             }
             case "LLEN" -> out.write(RespEncoder.RespInteger(listStore.dataSize(args.get(1))));
             case "LPOP" -> {
-                String value = listStore.leftPop(args.get(1));
-                out.write(value != null ? RespEncoder.bulkString(value) : RespEncoder.nullBulkString());
+                if (args.size() == 2) {
+                    String value = listStore.leftPop(args.get(1));
+                    out.write(value != null ? RespEncoder.bulkString(value) : RespEncoder.nullBulkString());
+                } else {
+                    List<String> values = listStore.leftPop(args.get(1), Integer.parseInt(args.get(2)));
+                    out.write(RespEncoder.encodeList(values));
+                }
             }
             default -> out.write(RespEncoder.error("unknown command '" + args.get(0) + "'"));
         }
