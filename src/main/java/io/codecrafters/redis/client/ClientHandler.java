@@ -80,6 +80,18 @@ public class ClientHandler implements Runnable {
                     out.write(RespEncoder.emptyList());
                 }
             }
+            case "TYPE" -> {
+                String key = args.get(1);
+                String type;
+                if (store.get(key) != null) {
+                    type = "string";
+                } else if (listStore.dataSize(key) > 0) {
+                    type = "list";
+                } else {
+                    type = "none";
+                }
+                out.write(RespEncoder.simpleString(type));
+            }
             default -> out.write(RespEncoder.error("unknown command '" + args.get(0) + "'"));
         }
     }

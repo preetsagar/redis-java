@@ -589,4 +589,57 @@ class MainTest {
             assertEquals("*2\r\n$12\r\nblpop-test-3\r\n$5\r\nhello\r\n", new String(buffer, 0, bytesRead));
         }
     }
+
+    @Test
+    void typeReturnsStringForStringKey() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("SET", "type-test-1", "hello").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("TYPE", "type-test-1").getBytes());
+            assertEquals("+string\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void typeReturnsListForListKey() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "type-test-2", "a").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("TYPE", "type-test-2").getBytes());
+            assertEquals("+list\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void typeReturnsNoneForMissingKey() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write(resp("TYPE", "type-missing").getBytes());
+            byte[] buffer = new byte[1024];
+            assertEquals("+none\r\n", new String(buffer, 0, client.getInputStream().read(buffer)));
+        }
+    }
+
+    @Test
+    void typeReturnsNoneForExpiredKey() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("SET", "type-test-3", "val", "PX", "100").getBytes());
+            in.read(buffer);
+
+            Thread.sleep(150);
+
+            client.getOutputStream().write(resp("TYPE", "type-test-3").getBytes());
+            assertEquals("+none\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
 }
