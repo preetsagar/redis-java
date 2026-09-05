@@ -218,4 +218,42 @@ class ListStoreTest {
     void lpopWithCountOnMissingKeyReturnsEmpty() {
         assertEquals(List.of(), listStore.leftPop("missing", 3));
     }
+
+    @Test
+    void blpopReturnsImmediatelyIfElementExists() throws InterruptedException {
+        listStore.rightPush("mylist", List.of("foobar"));
+        List<String> result = listStore.blockedLeftPop("mylist", 1000);
+        assertEquals(List.of("mylist", "foobar"), result);
+    }
+
+    @Test
+    void blpopTimesOutOnEmptyList() throws InterruptedException {
+        long start = System.currentTimeMillis();
+        List<String> result = listStore.blockedLeftPop("empty", 100);
+        long elapsed = System.currentTimeMillis() - start;
+        assertEquals(List.of(), result);
+        assertTrue(elapsed >= 100, "Should have waited at least 100ms");
+    }
+
+    @Test
+    void blpopBlocksAndReceivesElementWhenPushed() throws InterruptedException {
+        Thread pusher = new Thread(() -> {
+            try {
+                Thread.sleep(100);
+                listStore.rightPush("mylist", List.of("hello"));
+            } catch (InterruptedException ignored) {}
+        });
+        pusher.start();
+
+        List<String> result = listStore.blockedLeftPop("mylist", 2000);
+        assertEquals(List.of("mylist", "hello"), result);
+        pusher.join();
+    }
+
+    @Test
+    void blpopRemovesElementFromList() throws InterruptedException {
+        listStore.rightPush("mylist", List.of("a", "b"));
+        listStore.blockedLeftPop("mylist", 1000);
+        assertEquals(1, listStore.dataSize("mylist"));
+    }
 }

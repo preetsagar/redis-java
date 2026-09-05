@@ -26,6 +26,10 @@ public class RespEncoder {
         return sb.toString().getBytes();
     }
 
+    public static byte[] emptyList() {
+        return "*-1\r\n".getBytes();
+    }
+
     public static byte[] error(String message) {
         return ("-ERR " + message + "\r\n").getBytes();
     }

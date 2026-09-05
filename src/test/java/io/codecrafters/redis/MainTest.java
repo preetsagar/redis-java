@@ -544,4 +544,49 @@ class MainTest {
             assertEquals("*2\r\n$1\r\na\r\n$1\r\nb\r\n", new String(buffer, 0, in.read(buffer)));
         }
     }
+
+    @Test
+    void blpopReturnsImmediatelyIfElementExists() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("RPUSH", "blpop-test-1", "foobar").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("BLPOP", "blpop-test-1", "1").getBytes());
+            assertEquals("*2\r\n$12\r\nblpop-test-1\r\n$6\r\nfoobar\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
+    void blpopTimesOutOnEmptyList() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write(resp("BLPOP", "blpop-test-2", "100").getBytes());
+            client.setSoTimeout(500);
+            byte[] buffer = new byte[1024];
+            int bytesRead = client.getInputStream().read(buffer);
+            assertEquals("*-1\r\n", new String(buffer, 0, bytesRead));
+        }
+    }
+
+    @Test
+    void blpopBlocksUntilElementIsPushed() throws Exception {
+        try (Socket blocker = new Socket("localhost", PORT);
+             Socket pusher = new Socket("localhost", PORT)) {
+
+            // blocker sends BLPOP with 2 second timeout
+            blocker.getOutputStream().write(resp("BLPOP", "blpop-test-3", "2000").getBytes());
+
+            // pusher waits 200ms then pushes
+            Thread.sleep(200);
+            pusher.getOutputStream().write(resp("RPUSH", "blpop-test-3", "hello").getBytes());
+            pusher.getInputStream().read(new byte[1024]); // consume :1
+
+            // blocker should now receive the element
+            byte[] buffer = new byte[1024];
+            int bytesRead = blocker.getInputStream().read(buffer);
+            assertEquals("*2\r\n$12\r\nblpop-test-3\r\n$5\r\nhello\r\n", new String(buffer, 0, bytesRead));
+        }
+    }
 }

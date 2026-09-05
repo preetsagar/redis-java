@@ -70,6 +70,15 @@ public class ClientHandler implements Runnable {
                     out.write(RespEncoder.encodeList(values));
                 }
             }
+            case "BLPOP" -> {
+                try {
+                    List<String> result = listStore.blockedLeftPop(args.get(1), Long.parseLong(args.get(2)));
+                    out.write(result.isEmpty() ? RespEncoder.emptyList() : RespEncoder.encodeList(result));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    out.write(RespEncoder.emptyList());
+                }
+            }
             default -> out.write(RespEncoder.error("unknown command '" + args.get(0) + "'"));
         }
     }
