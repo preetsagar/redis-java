@@ -4,35 +4,34 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ListStore {
 
-    private final HashMap<String, List<String>> data = new HashMap<>();
+    private final Map<String, List<String>> data = new HashMap<>();
     private final Object lock = new Object();
 
     public int rightPush(String key, List<String> values) {
         synchronized (lock) {
-            List<String> list = data.computeIfAbsent(key, k -> new ArrayList<>());
-            list.addAll(values);
+            getOrCreate(key).addAll(values);
             lock.notifyAll();
-            return list.size();
+            return getOrCreate(key).size();
         }
     }
 
     public int leftPush(String key, List<String> values) {
         synchronized (lock) {
-            List<String> list = data.computeIfAbsent(key, k -> new ArrayList<>());
             List<String> reversed = new ArrayList<>(values);
             Collections.reverse(reversed);
-            list.addAll(0, reversed);
+            getOrCreate(key).addAll(0, reversed);
             lock.notifyAll();
-            return list.size();
+            return getOrCreate(key).size();
         }
     }
 
     public List<String> lRange(String key, int start, int end) {
         synchronized (lock) {
-            List<String> list = data.getOrDefault(key, new ArrayList<>());
+            List<String> list = getOrEmpty(key);
             int size = list.size();
             if (start < 0) start = Math.max(0, size + start);
             if (end < 0) end = size + end;
@@ -44,8 +43,7 @@ public class ListStore {
 
     public int dataSize(String key) {
         synchronized (lock) {
-            List<String> list = data.get(key);
-            return list == null ? 0 : list.size();
+            return getOrEmpty(key).size();
         }
     }
 
@@ -69,7 +67,7 @@ public class ListStore {
     }
 
     // Blocks until an element is available or timeout expires.
-    // timeoutSeconds == 0 means block indefinitely.
+    // timeoutMilliSeconds == 0 means block indefinitely.
     // Returns [key, value] or empty list on timeout.
     public List<String> blockedLeftPop(String key, long timeoutMilliSeconds) throws InterruptedException {
         long deadlineMillis = timeoutMilliSeconds > 0
@@ -87,5 +85,13 @@ public class ListStore {
                 lock.wait(timeoutMilliSeconds == 0 ? 0 : remaining);
             }
         }
+    }
+
+    private List<String> getOrCreate(String key) {
+        return data.computeIfAbsent(key, k -> new ArrayList<>());
+    }
+
+    private List<String> getOrEmpty(String key) {
+        return data.getOrDefault(key, new ArrayList<>());
     }
 }
