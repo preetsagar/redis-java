@@ -1,3 +1,5 @@
+package io.codecrafters.redis.store;
+
 import java.util.HashMap;
 
 public class Store {

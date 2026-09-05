@@ -1,3 +1,5 @@
+package io.codecrafters.redis;
+
 public class Main {
 
     private static final int PORT = 6379;

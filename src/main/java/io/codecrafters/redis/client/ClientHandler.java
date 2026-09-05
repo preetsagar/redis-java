@@ -1,3 +1,9 @@
+package io.codecrafters.redis.client;
+
+import io.codecrafters.redis.protocol.RespEncoder;
+import io.codecrafters.redis.protocol.RespParser;
+import io.codecrafters.redis.store.Store;
+
 import java.io.*;
 import java.net.Socket;
 

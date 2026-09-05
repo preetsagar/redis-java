@@ -1,3 +1,5 @@
+package io.codecrafters.redis.protocol;
+
 import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
@@ -50,8 +52,7 @@ class RespParserTest {
 
     @Test
     void returnsNullOnEmptyInput() throws IOException {
-        String[] args = parserFor("").readCommand();
-        assertNull(args, "Should return null when there is no input");
+        assertNull(parserFor("").readCommand());
     }
 
     @Test

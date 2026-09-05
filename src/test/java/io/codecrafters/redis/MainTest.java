@@ -1,10 +1,11 @@
+package io.codecrafters.redis;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.InputStream;
 import java.net.Socket;
-import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -18,7 +19,7 @@ class MainTest {
         serverThread = new Thread(() -> new RedisServer(PORT).start());
         serverThread.setDaemon(true);
         serverThread.start();
-        Thread.sleep(100); // give server time to bind
+        Thread.sleep(100);
     }
 
     @AfterEach
@@ -57,7 +58,7 @@ class MainTest {
                 byte[] buffer = new byte[1024];
                 int bytesRead = client.getInputStream().read(buffer);
                 assertTrue(bytesRead > 0, "Server should send a response");
-            }, "Reading from the accepted socket should not throw");
+            });
         }
     }
 
@@ -67,8 +68,7 @@ class MainTest {
             client.getOutputStream().write(resp("PING").getBytes());
             byte[] buffer = new byte[1024];
             int bytesRead = client.getInputStream().read(buffer);
-            String response = new String(buffer, 0, bytesRead);
-            assertEquals("+PONG\r\n", response, "Server should respond with +PONG for PING");
+            assertEquals("+PONG\r\n", new String(buffer, 0, bytesRead));
         }
     }
 
@@ -77,12 +77,9 @@ class MainTest {
         try (Socket client = new Socket("localhost", PORT)) {
             InputStream in = client.getInputStream();
             byte[] buffer = new byte[1024];
-
             for (int i = 0; i < 3; i++) {
                 client.getOutputStream().write(resp("PING").getBytes());
-                int bytesRead = in.read(buffer);
-                String response = new String(buffer, 0, bytesRead);
-                assertEquals("+PONG\r\n", response, "Server should respond with +PONG for each PING");
+                assertEquals("+PONG\r\n", new String(buffer, 0, in.read(buffer)));
             }
         }
     }
@@ -93,8 +90,7 @@ class MainTest {
             client.getOutputStream().write(resp("ECHO", "hey").getBytes());
             byte[] buffer = new byte[1024];
             int bytesRead = client.getInputStream().read(buffer);
-            String response = new String(buffer, 0, bytesRead);
-            assertEquals("$3\r\nhey\r\n", response, "Server should echo back the message as a bulk string");
+            assertEquals("$3\r\nhey\r\n", new String(buffer, 0, bytesRead));
         }
     }
 
@@ -105,12 +101,10 @@ class MainTest {
             byte[] buffer = new byte[1024];
 
             client.getOutputStream().write(resp("SET", "foo", "bar").getBytes());
-            String setResponse = new String(buffer, 0, in.read(buffer));
-            assertEquals("+OK\r\n", setResponse);
+            assertEquals("+OK\r\n", new String(buffer, 0, in.read(buffer)));
 
             client.getOutputStream().write(resp("GET", "foo").getBytes());
-            String getResponse = new String(buffer, 0, in.read(buffer));
-            assertEquals("$3\r\nbar\r\n", getResponse);
+            assertEquals("$3\r\nbar\r\n", new String(buffer, 0, in.read(buffer)));
         }
     }
 
@@ -119,8 +113,7 @@ class MainTest {
         try (Socket client = new Socket("localhost", PORT)) {
             client.getOutputStream().write(resp("GET", "missing").getBytes());
             byte[] buffer = new byte[1024];
-            String response = new String(buffer, 0, client.getInputStream().read(buffer));
-            assertEquals("$-1\r\n", response);
+            assertEquals("$-1\r\n", new String(buffer, 0, client.getInputStream().read(buffer)));
         }
     }
 
@@ -131,13 +124,12 @@ class MainTest {
             byte[] buffer = new byte[1024];
 
             client.getOutputStream().write(resp("SET", "foo", "bar", "PX", "100").getBytes());
-            in.read(buffer); // consume +OK
+            in.read(buffer);
 
             Thread.sleep(150);
 
             client.getOutputStream().write(resp("GET", "foo").getBytes());
-            String response = new String(buffer, 0, in.read(buffer));
-            assertEquals("$-1\r\n", response, "Key should have expired");
+            assertEquals("$-1\r\n", new String(buffer, 0, in.read(buffer)), "Key should have expired");
         }
     }
 
@@ -148,13 +140,12 @@ class MainTest {
             byte[] buffer = new byte[1024];
 
             client.getOutputStream().write(resp("SET", "foo", "bar", "EX", "1").getBytes());
-            in.read(buffer); // consume +OK
+            in.read(buffer);
 
             Thread.sleep(1100);
 
             client.getOutputStream().write(resp("GET", "foo").getBytes());
-            String response = new String(buffer, 0, in.read(buffer));
-            assertEquals("$-1\r\n", response, "Key should have expired after 1 second");
+            assertEquals("$-1\r\n", new String(buffer, 0, in.read(buffer)), "Key should have expired after 1 second");
         }
     }
 }

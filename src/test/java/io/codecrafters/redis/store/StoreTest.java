@@ -1,3 +1,5 @@
+package io.codecrafters.redis.store;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -47,8 +49,7 @@ class StoreTest {
     void expiredKeyIsRemovedOnGet() throws InterruptedException {
         store.set("foo", "bar", 50);
         Thread.sleep(100);
-        store.get("foo"); // triggers removal
-        // set again without TTL — should work normally
+        store.get("foo");
         store.set("foo", "fresh");
         assertEquals("fresh", store.get("foo"));
     }
@@ -56,8 +57,8 @@ class StoreTest {
     @Test
     void overwriteWithNoTtlClearsPreviousTtl() throws InterruptedException {
         store.set("foo", "bar", 50);
-        store.set("foo", "baz"); // overwrite without TTL
+        store.set("foo", "baz");
         Thread.sleep(100);
-        assertEquals("baz", store.get("foo")); // should NOT expire
+        assertEquals("baz", store.get("foo"));
     }
 }

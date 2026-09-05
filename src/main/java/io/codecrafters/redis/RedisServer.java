@@ -1,3 +1,8 @@
+package io.codecrafters.redis;
+
+import io.codecrafters.redis.client.ClientHandler;
+import io.codecrafters.redis.store.Store;
+
 import java.io.IOException;
 import java.net.ServerSocket;
 

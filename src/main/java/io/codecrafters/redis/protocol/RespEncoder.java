@@ -1,3 +1,5 @@
+package io.codecrafters.redis.protocol;
+
 public class RespEncoder {
 
     public static byte[] simpleString(String str) {
