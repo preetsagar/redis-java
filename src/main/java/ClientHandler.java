@@ -1,12 +1,15 @@
 import java.io.*;
 import java.net.Socket;
+import java.util.HashMap;
 
 public class ClientHandler implements Runnable {
 
     private final Socket client;
+    private HashMap<String, String> hashMap;
 
     public ClientHandler(Socket client) {
         this.client = client;
+        hashMap = new HashMap<>();
     }
 
     @Override
@@ -14,17 +17,10 @@ public class ClientHandler implements Runnable {
         try (client;
              BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
              OutputStream out = client.getOutputStream()) {
-            String line;
-            while ((line = in.readLine()) != null) {
-                if (line.startsWith("*")) {
-                    int count = Integer.parseInt(line.substring(1));
-                    String[] args = new String[count];
-                    for (int i = 0; i < count; i++) {
-                        in.readLine(); // skip $<len> line
-                        args[i] = in.readLine();
-                    }
-                    handleCommand(args, out);
-                }
+            RespParser parser = new RespParser(in);
+            String[] args;
+            while ((args = parser.readCommand()) != null) {
+                handleCommand(args, out);
             }
         } catch (IOException e) {
             System.out.println("Client error: " + e.getMessage());
@@ -38,7 +34,26 @@ public class ClientHandler implements Runnable {
                 String msg = args[1];
                 out.write(("$" + msg.length() + "\r\n" + msg + "\r\n").getBytes());
             }
+            case "SET" -> {
+                hashMap.put(args[1], args[2]);
+                out.write(getSimpleString("OK"));
+            }
+            case "GET" -> {
+                out.write(encodeResponse(hashMap.get(args[1])));
+            }
             default -> out.write(("-ERR unknown command '" + args[0] + "'\r\n").getBytes());
         }
+    }
+
+    private static byte[] encodeResponse(String str) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("$").append(str.length()).append("\r\n").append(str).append("\r\n");
+        return sb.toString().getBytes();
+    }
+
+    private  static byte[] getSimpleString(String str) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("+").append(str).append("\r\n");
+        return sb.toString().getBytes();
     }
 }
