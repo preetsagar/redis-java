@@ -23,6 +23,10 @@ class MainTest {
         serverThread = new Thread(() -> {
             try {
                 Socket client = serverSocket.accept();
+                byte[] buffer = new byte[1024];
+                int bytesRead = client.getInputStream().read(buffer);
+                System.out.println("Request: " + new String(buffer, 0, bytesRead));
+                client.getOutputStream().write("+PONG\r\n".getBytes());
                 client.close();
             } catch (IOException e) {
                 // Expected when we shut the server down in @AfterEach
@@ -57,18 +61,24 @@ class MainTest {
 
     @Test
     void serverAcceptsConnectionWithoutError() throws Exception {
-        // Connect and verify the connection completes cleanly
         try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write("ping\r\n".getBytes());
             assertDoesNotThrow(() -> {
-                // reading -1 (EOF) is fine – server closed its side after accepting
-                client.getInputStream().read();
+                byte[] buffer = new byte[1024];
+                int bytesRead = client.getInputStream().read(buffer);
+                assertTrue(bytesRead > 0, "Server should send a response");
             }, "Reading from the accepted socket should not throw");
         }
     }
 
-//    @Test
-//    void serverSocketHasReuseAddressEnabled() {
-//        assertTrue(serverSocket.getReuseAddress(),
-//                "SO_REUSEADDR must be set so the port can be reused immediately after restart");
-//    }
+    @Test
+    void serverRepliesWithPongForAnyInput() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write("hello\r\n".getBytes());
+            byte[] buffer = new byte[1024];
+            int bytesRead = client.getInputStream().read(buffer);
+            String response = new String(buffer, 0, bytesRead);
+            assertEquals("+PONG\r\n", response, "Server should respond with +PONG for any input");
+        }
+    }
 }
