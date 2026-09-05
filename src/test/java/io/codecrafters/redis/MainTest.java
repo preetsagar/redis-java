@@ -811,10 +811,10 @@ class MainTest {
         try (Socket client = new Socket("localhost", PORT)) {
             long before = System.currentTimeMillis();
             client.getOutputStream().write(resp("XADD", "xadd-fw-1", "*", "foo", "bar").getBytes());
-            long after = System.currentTimeMillis();
 
             byte[] buffer = new byte[1024];
             String response = new String(buffer, 0, client.getInputStream().read(buffer));
+            long after = System.currentTimeMillis();
 
             // Response is a bulk string: $<len>\r\n<id>\r\n
             assertTrue(response.startsWith("$"), "Expected bulk string, got: " + response);
