@@ -14,10 +14,11 @@ class MainTest {
     private Thread serverThread;
 
     @BeforeEach
-    void startServer() {
+    void startServer() throws Exception {
         serverThread = new Thread(() -> new RedisServer(PORT).start());
         serverThread.setDaemon(true);
         serverThread.start();
+        Thread.sleep(100); // give server time to bind
     }
 
     @AfterEach
@@ -26,6 +27,13 @@ class MainTest {
         serverThread.join(1000);
     }
 
+    private static String resp(String... args) {
+        StringBuilder sb = new StringBuilder("*").append(args.length).append("\r\n");
+        for (String arg : args) {
+            sb.append("$").append(arg.length()).append("\r\n").append(arg).append("\r\n");
+        }
+        return sb.toString();
+    }
 
     @Test
     void serverBindsToPort6379() throws Exception {
@@ -44,7 +52,7 @@ class MainTest {
     @Test
     void serverAcceptsConnectionWithoutError() throws Exception {
         try (Socket client = new Socket("localhost", PORT)) {
-            client.getOutputStream().write("ping\r\n".getBytes());
+            client.getOutputStream().write(resp("PING").getBytes());
             assertDoesNotThrow(() -> {
                 byte[] buffer = new byte[1024];
                 int bytesRead = client.getInputStream().read(buffer);
@@ -54,13 +62,13 @@ class MainTest {
     }
 
     @Test
-    void serverRepliesWithPongForAnyInput() throws Exception {
+    void serverRepliesWithPongForPingCommand() throws Exception {
         try (Socket client = new Socket("localhost", PORT)) {
-            client.getOutputStream().write("hello\r\n".getBytes());
+            client.getOutputStream().write(resp("PING").getBytes());
             byte[] buffer = new byte[1024];
             int bytesRead = client.getInputStream().read(buffer);
             String response = new String(buffer, 0, bytesRead);
-            assertEquals("+PONG\r\n", response, "Server should respond with +PONG for any input");
+            assertEquals("+PONG\r\n", response, "Server should respond with +PONG for PING");
         }
     }
 
@@ -70,14 +78,23 @@ class MainTest {
             InputStream in = client.getInputStream();
             byte[] buffer = new byte[1024];
 
-            String[] commands = {"ping\r\n", "hello\r\n", "world\r\n"};
-            for (String command : commands) {
-                client.getOutputStream().write(command.getBytes());
+            for (int i = 0; i < 3; i++) {
+                client.getOutputStream().write(resp("PING").getBytes());
                 int bytesRead = in.read(buffer);
                 String response = new String(buffer, 0, bytesRead);
-                assertEquals("+PONG\r\n", response,
-                    "Server should respond with +PONG for command: " + command.trim());
+                assertEquals("+PONG\r\n", response, "Server should respond with +PONG for each PING");
             }
+        }
+    }
+
+    @Test
+    void serverRepliesWithEchoMessage() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write(resp("ECHO", "hey").getBytes());
+            byte[] buffer = new byte[1024];
+            int bytesRead = client.getInputStream().read(buffer);
+            String response = new String(buffer, 0, bytesRead);
+            assertEquals("$3\r\nhey\r\n", response, "Server should echo back the message as a bulk string");
         }
     }
 }
