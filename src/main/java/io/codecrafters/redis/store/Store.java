@@ -26,4 +26,12 @@ public class Store {
         }
         return data.get(key);
     }
+
+    public String increment(String key) {
+        String existing = get(key);
+        int current = existing == null ? 0 : Integer.parseInt(existing);
+        current++;
+        set(key, String.valueOf(current));
+        return String.valueOf(current);
+    }
 }

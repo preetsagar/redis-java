@@ -62,4 +62,38 @@ class StoreTest {
         assertEquals("baz", store.get("foo"));
     }
 
+    // INCR
+
+    @Test
+    void incrementExistingIntegerKey() {
+        store.set("counter", "5");
+        assertEquals("6", store.increment("counter"));
+    }
+
+    @Test
+    void incrementMissingKeyStartsFromZero() {
+        assertEquals("1", store.increment("missing"));
+    }
+
+    @Test
+    void incrementMultipleTimesAccumulates() {
+        store.set("counter", "0");
+        store.increment("counter");
+        store.increment("counter");
+        assertEquals("3", store.increment("counter"));
+    }
+
+    @Test
+    void incrementUpdatesStoredValue() {
+        store.set("counter", "10");
+        store.increment("counter");
+        assertEquals("11", store.get("counter"));
+    }
+
+    @Test
+    void incrementNonIntegerThrowsException() {
+        store.set("counter", "notanumber");
+        assertThrows(NumberFormatException.class, () -> store.increment("counter"));
+    }
+
 }

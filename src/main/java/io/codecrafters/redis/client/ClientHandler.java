@@ -59,13 +59,21 @@ public class ClientHandler implements Runnable {
                 String value = store.get(args.get(1));
                 out.write(value != null ? RespEncoder.bulkString(value) : RespEncoder.nullBulkString());
             }
-            case "RPUSH" -> out.write(RespEncoder.RespInteger(listStore.rightPush(args.get(1), args.subList(2, args.size()))));
-            case "LPUSH" -> out.write(RespEncoder.RespInteger(listStore.leftPush(args.get(1), args.subList(2, args.size()))));
+            case "INCR" -> {
+                try {
+                    String value = store.increment(args.get(1));
+                    out.write(RespEncoder.respInteger(Integer.parseInt(value)));
+                } catch (NumberFormatException e) {
+                    out.write(RespEncoder.error("value is not an integer or out of range"));
+                }
+            }
+            case "RPUSH" -> out.write(RespEncoder.respInteger(listStore.rightPush(args.get(1), args.subList(2, args.size()))));
+            case "LPUSH" -> out.write(RespEncoder.respInteger(listStore.leftPush(args.get(1), args.subList(2, args.size()))));
             case "LRANGE" -> {
                 List<String> result = listStore.lRange(args.get(1), Integer.parseInt(args.get(2)), Integer.parseInt(args.get(3)));
                 out.write(RespEncoder.encodeList(result));
             }
-            case "LLEN" -> out.write(RespEncoder.RespInteger(listStore.dataSize(args.get(1))));
+            case "LLEN" -> out.write(RespEncoder.respInteger(listStore.dataSize(args.get(1))));
             case "LPOP" -> {
                 if (args.size() == 2) {
                     String value = listStore.leftPop(args.get(1));

@@ -35,7 +35,7 @@ public class RespEncoder {
         return ("-ERR " + message + "\r\n").getBytes();
     }
 
-    public static byte[] RespInteger(Integer value) {
+    public static byte[] respInteger(Integer value) {
         return (":"+value+"\r\n").getBytes();
     }
 
