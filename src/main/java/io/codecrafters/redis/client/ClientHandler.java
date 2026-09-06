@@ -95,9 +95,11 @@ public class ClientHandler implements Runnable {
                     out.write(RespEncoder.error("WATCH inside MULTI is not allowed"));
                 }
                 else {
-                    String key = args.get(1);
-                    store.addWatcher(key, this);
-                    watchingKeys.add(key);
+                    List<String> keys = args.subList(1, args.size());
+                    for(String key : keys) {
+                        store.addWatcher(key, this);
+                        watchingKeys.add(key);
+                    }
                     out.write(RespEncoder.simpleString("OK"));
                 }
             }
