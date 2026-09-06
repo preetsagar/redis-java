@@ -103,6 +103,10 @@ public class ClientHandler implements Runnable {
                     out.write(RespEncoder.simpleString("OK"));
                 }
             }
+            case "UNWATCH" -> {
+                clearWatches();
+                out.write(RespEncoder.simpleString("OK"));
+            }
             case "GET" -> {
                 String value = store.get(args.get(1));
                 out.write(value != null ? RespEncoder.bulkString(value) : RespEncoder.nullBulkString());
