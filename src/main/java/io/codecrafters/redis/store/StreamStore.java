@@ -42,6 +42,9 @@ public class StreamStore {
         synchronized (lock) {
             long deadline = milliseconds > 0 ? System.currentTimeMillis() + milliseconds : 0;
             while (true) {
+                if(afterId.equals("$")) {
+                    afterId = lastIds.getOrDefault(key, "0-0");
+                }
                 long[] after = parseId(afterId);
                 List<StreamEntry> result = data.getOrDefault(key, Collections.emptyList()).stream()
                         .filter(e -> compareIds(parseId(e.id()), after) > 0)

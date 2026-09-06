@@ -316,6 +316,42 @@ class StreamStoreTest {
         assertEquals(List.of("temperature", "37"), result.get(0).fields());
     }
 
+    // $ special ID
+
+    @Test
+    void xreadWithDollarIgnoresExistingEntries() throws InterruptedException {
+        streamStore.xadd("s", "1-0", List.of("a", "1"));
+        streamStore.xadd("s", "2-0", List.of("b", "2"));
+        // $ resolves to the current last ID, so only entries after 2-0 are returned
+        var result = streamStore.xread("s", "$", 100L);
+        assertEquals(0, result.size());
+    }
+
+    @Test
+    void xreadWithDollarOnEmptyStreamReturnsEmpty() throws InterruptedException {
+        var result = streamStore.xread("empty-stream", "$", 100L);
+        assertEquals(0, result.size());
+    }
+
+    @Test
+    void xreadWithDollarBlocksAndReceivesNewEntry() throws InterruptedException {
+        streamStore.xadd("s", "1-0", List.of("old", "data"));
+
+        Thread pusher = new Thread(() -> {
+            try {
+                Thread.sleep(100);
+                streamStore.xadd("s", "2-0", List.of("new", "data"));
+            } catch (InterruptedException ignored) {}
+        });
+        pusher.start();
+
+        // $ = only entries added after this point → should receive 2-0, not 1-0
+        var result = streamStore.xread("s", "$", 2000L);
+        assertEquals(1, result.size());
+        assertEquals("2-0", result.get(0).id());
+        pusher.join();
+    }
+
     @Test
     void xreadBlocksAndReceivesEntryWhenPushed() throws InterruptedException {
         Thread pusher = new Thread(() -> {

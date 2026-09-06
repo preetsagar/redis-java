@@ -1039,6 +1039,50 @@ class MainTest {
     }
 
     @Test
+    void xreadDollarIgnoresExistingEntries() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[4096];
+
+            client.getOutputStream().write(resp("XADD", "xread-dollar-1", "1-0", "a", "1").getBytes());
+            in.read(buffer);
+            client.getOutputStream().write(resp("XADD", "xread-dollar-1", "2-0", "b", "2").getBytes());
+            in.read(buffer);
+
+            // $ = only new entries after this point; nothing new → empty/null response
+            client.getOutputStream().write(resp("XREAD", "BLOCK", "100", "STREAMS", "xread-dollar-1", "$").getBytes());
+            client.setSoTimeout(500);
+            String response = new String(buffer, 0, in.read(buffer));
+            assertEquals("*-1\r\n", response, "Expected null array for no new entries, got: " + response);
+        }
+    }
+
+    @Test
+    void xreadDollarBlocksAndReceivesNewEntry() throws Exception {
+        try (Socket blocker = new Socket("localhost", PORT);
+             Socket pusher  = new Socket("localhost", PORT)) {
+
+            // Pre-populate the stream
+            pusher.getOutputStream().write(resp("XADD", "xread-dollar-2", "1-0", "old", "data").getBytes());
+            pusher.getInputStream().read(new byte[1024]);
+
+            // Blocker subscribes with $ — should NOT receive 1-0
+            blocker.getOutputStream().write(resp("XREAD", "BLOCK", "2000", "STREAMS", "xread-dollar-2", "$").getBytes());
+
+            // Wait, then push a new entry
+            Thread.sleep(200);
+            pusher.getOutputStream().write(resp("XADD", "xread-dollar-2", "2-0", "new", "data").getBytes());
+            pusher.getInputStream().read(new byte[1024]);
+
+            byte[] buffer = new byte[4096];
+            String response = new String(buffer, 0, blocker.getInputStream().read(buffer));
+
+            assertTrue(response.contains("2-0"), "Should receive the new entry 2-0, got: " + response);
+            assertFalse(response.contains("1-0"), "Should NOT receive the old entry 1-0");
+        }
+    }
+
+    @Test
     void xrangeWithDashStartReturnsFromBeginning() throws Exception {
         try (Socket client = new Socket("localhost", PORT)) {
             InputStream in = client.getInputStream();
