@@ -9,6 +9,7 @@ import io.codecrafters.redis.store.StreamStore.StreamEntry;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.List;
 
 public class ClientHandler implements Runnable {
@@ -85,16 +86,29 @@ public class ClientHandler implements Runnable {
                 }
             }
             case "XREAD" -> {
-                // Syntax: XREAD STREAMS <key1> [key2 ...] <id1> [id2 ...]
-                // args: [XREAD, STREAMS, key1, ..., keyN, id1, ..., idN]
-                int streamCount = (args.size() - 2) / 2;
-                List<String> keys = args.subList(2, 2 + streamCount);
-                List<String> ids = args.subList(2 + streamCount, args.size());
-                List<List<StreamEntry>> allEntries = new java.util.ArrayList<>();
-                for (int i = 0; i < streamCount; i++) {
-                    allEntries.add(streamStore.xread(keys.get(i), ids.get(i)));
+                try {
+                    // Syntax A: XREAD STREAMS key1 ... id1 ...
+                    // Syntax B: XREAD BLOCK <ms> STREAMS key1 ... id1 ...
+                    boolean hasBlock = args.get(1).equalsIgnoreCase("BLOCK");
+                    long blockMs = hasBlock ? Long.parseLong(args.get(2)) : 10L;
+                    int streamsIdx = hasBlock ? 4 : 2; // index of first key after STREAMS
+                    int streamCount = (args.size() - streamsIdx) / 2;
+                    List<String> keys = args.subList(streamsIdx, streamsIdx + streamCount);
+                    List<String> ids = args.subList(streamsIdx + streamCount, args.size());
+                    List<List<StreamEntry>> allEntries = new ArrayList<>();
+                    for (int i = 0; i < streamCount; i++) {
+                        allEntries.add(streamStore.xread(keys.get(i), ids.get(i), blockMs));
+                    }
+                    allEntries = allEntries.stream().filter(e -> !e.isEmpty()).toList();
+                    if (allEntries.isEmpty()) {
+                        out.write(RespEncoder.emptyList());
+                    } else {
+                        out.write(RespEncoder.encodeXRead(keys, allEntries));
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    out.write(RespEncoder.emptyList());
                 }
-                out.write(RespEncoder.encodeXRead(keys, allEntries));
             }
             case "XRANGE" -> {
                 List<StreamEntry> entries = streamStore.xrange(args.get(1), args.get(2), args.get(3));

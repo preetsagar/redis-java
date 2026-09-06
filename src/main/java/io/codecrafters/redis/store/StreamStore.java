@@ -1,9 +1,6 @@
 package io.codecrafters.redis.store;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class StreamStore {
@@ -12,45 +9,63 @@ public class StreamStore {
     private final Map<String, List<StreamEntry>> data = new HashMap<>();
     private final Map<String, String> lastIds = new HashMap<>();
 
+    private final Object lock = new Object();
+
     // Returns the inserted ID, or throws IllegalArgumentException with the Redis error message.
     public String xadd(String key, String id, List<String> fields) {
-        String lastId = lastIds.getOrDefault(key, "0-0");
-        if (id.equals("0-0")) {
-            throw new IllegalArgumentException("The ID specified in XADD must be greater than 0-0");
+        synchronized (lock) {
+            String lastId = lastIds.getOrDefault(key, "0-0");
+            if (id.equals("0-0")) {
+                throw new IllegalArgumentException("The ID specified in XADD must be greater than 0-0");
+            }
+            if (isWildCardID(id)) {
+                id = generateId(id, lastId);
+            } else if (!isGreaterThan(id, lastId)) {
+                throw new IllegalArgumentException("The ID specified in XADD is equal or smaller than the target stream top item");
+            }
+            data.computeIfAbsent(key, k -> new ArrayList<>()).add(new StreamEntry(id, new ArrayList<>(fields)));
+            lastIds.put(key, id);
+            lock.notifyAll();
+            return id;
         }
-        if (isWildCardID(id)) {
-            id = generateId(id, lastId);
-        } else if (!isGreaterThan(id, lastId)) {
-            throw new IllegalArgumentException("The ID specified in XADD is equal or smaller than the target stream top item");
-        }
-        data.computeIfAbsent(key, k -> new ArrayList<>()).add(new StreamEntry(id, new ArrayList<>(fields)));
-        lastIds.put(key, id);
-        return id;
     }
 
     public boolean hasKey(String key) {
-        return data.containsKey(key);
+        synchronized (lock) {
+            return data.containsKey(key);
+        }
     }
 
     // Returns entries strictly greater than afterId (exclusive).
-    public List<StreamEntry> xread(String key, String afterId) {
-        List<StreamEntry> entries = data.getOrDefault(key, new ArrayList<>());
-        long[] after = parseId(afterId);
-        return entries.stream()
-                .filter(e -> compareIds(parseId(e.id()), after) > 0)
-                .collect(Collectors.toList());
+    // Blocks up to milliseconds waiting for new entries. 0 = infinite blocking.
+    public List<StreamEntry> xread(String key, String afterId, long milliseconds) throws InterruptedException {
+        synchronized (lock) {
+            long deadline = milliseconds > 0 ? System.currentTimeMillis() + milliseconds : 0;
+            while (true) {
+                long[] after = parseId(afterId);
+                List<StreamEntry> result = data.getOrDefault(key, Collections.emptyList()).stream()
+                        .filter(e -> compareIds(parseId(e.id()), after) > 0)
+                        .collect(Collectors.toList());
+                if (!result.isEmpty()) return result;
+                long remaining = deadline > 0 ? deadline - System.currentTimeMillis() : 0;
+                if (deadline > 0 && remaining <= 0) return result;
+                lock.wait(remaining);
+            }
+        }
     }
 
     public List<StreamEntry> xrange(String key, String startId, String endId) {
-        List<StreamEntry> entries = data.getOrDefault(key, new ArrayList<>());
-        if (startId.equals("-")) startId = "0-0";
-        if (endId.equals("+")) endId = Long.MAX_VALUE + "-" + Long.MAX_VALUE;
-        long[] start = parseRangeId(startId, 0L);
-        long[] end = parseRangeId(endId, Long.MAX_VALUE);
-        return entries.stream()
-                .filter(e -> compareIds(parseId(e.id()), start) >= 0
-                          && compareIds(parseId(e.id()), end) <= 0)
-                .collect(Collectors.toList());
+        synchronized (lock) {
+            List<StreamEntry> entries = data.getOrDefault(key, new ArrayList<>());
+            if (startId.equals("-")) startId = "0-0";
+            if (endId.equals("+")) endId = Long.MAX_VALUE + "-" + Long.MAX_VALUE;
+            long[] start = parseRangeId(startId, 0L);
+            long[] end = parseRangeId(endId, Long.MAX_VALUE);
+            return entries.stream()
+                    .filter(e -> compareIds(parseId(e.id()), start) >= 0
+                            && compareIds(parseId(e.id()), end) <= 0)
+                    .collect(Collectors.toList());
+        }
     }
 
     private long[] parseRangeId(String id, long defaultSeq) {

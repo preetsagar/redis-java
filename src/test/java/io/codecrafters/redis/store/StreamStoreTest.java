@@ -277,43 +277,68 @@ class StreamStoreTest {
     // XREAD
 
     @Test
-    void xreadReturnsEntriesAfterGivenId() {
+    void xreadReturnsEntriesAfterGivenId() throws InterruptedException {
         streamStore.xadd("s", "1-0", List.of("a", "1"));
         streamStore.xadd("s", "2-0", List.of("b", "2"));
         streamStore.xadd("s", "3-0", List.of("c", "3"));
-        var result = streamStore.xread("s", "1-0");
+        var result = streamStore.xread("s", "1-0", 0L);
         assertEquals(2, result.size());
         assertEquals("2-0", result.get(0).id());
         assertEquals("3-0", result.get(1).id());
     }
 
     @Test
-    void xreadIsExclusive() {
+    void xreadIsExclusive() throws InterruptedException {
         streamStore.xadd("s", "1-0", List.of("a", "1"));
-        var result = streamStore.xread("s", "1-0");
+        var result = streamStore.xread("s", "1-0", 100L);
         assertEquals(0, result.size());
     }
 
     @Test
-    void xreadFromZeroReturnsAll() {
+    void xreadFromZeroReturnsAll() throws InterruptedException {
         streamStore.xadd("s", "1-0", List.of("a", "1"));
         streamStore.xadd("s", "2-0", List.of("b", "2"));
-        var result = streamStore.xread("s", "0-0");
+        var result = streamStore.xread("s", "0-0", 100L);
         assertEquals(2, result.size());
     }
 
     @Test
-    void xreadOnMissingKeyReturnsEmpty() {
-        var result = streamStore.xread("missing", "0-0");
+    void xreadOnMissingKeyReturnsEmpty() throws InterruptedException {
+        var result = streamStore.xread("missing", "0-0", 100L);
         assertEquals(0, result.size());
     }
 
     @Test
-    void xreadEntryFieldsArePreserved() {
+    void xreadEntryFieldsArePreserved() throws InterruptedException {
         streamStore.xadd("s", "1-0", List.of("temperature", "36", "humidity", "95"));
         streamStore.xadd("s", "2-0", List.of("temperature", "37"));
-        var result = streamStore.xread("s", "1-0");
+        var result = streamStore.xread("s", "1-0", 100L);
         assertEquals(List.of("temperature", "37"), result.get(0).fields());
+    }
+
+    @Test
+    void xreadBlocksAndReceivesEntryWhenPushed() throws InterruptedException {
+        Thread pusher = new Thread(() -> {
+            try {
+                Thread.sleep(100);
+                streamStore.xadd("s-block", "1-0", List.of("foo", "bar"));
+            } catch (InterruptedException ignored) {}
+        });
+        pusher.start();
+
+        var result = streamStore.xread("s-block", "0-0", 2000L);
+        assertEquals(1, result.size());
+        assertEquals("1-0", result.get(0).id());
+        pusher.join();
+    }
+
+    @Test
+    void xreadTimesOutWhenNoEntries() throws InterruptedException {
+        long start = System.currentTimeMillis();
+        var result = streamStore.xread("s-timeout", "0-0", 100L);
+        long elapsed = System.currentTimeMillis() - start;
+        assertEquals(0, result.size());
+        assertTrue(elapsed >= 100, "Should have waited at least 100ms");
     }
 
     @Test

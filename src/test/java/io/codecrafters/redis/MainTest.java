@@ -957,7 +957,7 @@ class MainTest {
             client.getOutputStream().write(resp("XREAD", "STREAMS", "xread-2", "1-0").getBytes());
             String response = new String(buffer, 0, in.read(buffer));
             // No entries after 1-0, so the entries array is *0
-            assertTrue(response.contains("*0\r\n"), "Expected empty entries array, got: " + response);
+            assertTrue(response.contains("*-1\r\n"), "Expected empty entries array, got: " + response);
         }
     }
 
