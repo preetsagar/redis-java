@@ -1,0 +1,39 @@
+@startuml flow-simple
+title Flow of a single command — e.g. `SET foo bar`
+
+actor Client
+participant "ClientHandler\n(per connection thread)" as CH
+participant RespParser as RP
+participant CommandDispatcher as CD
+participant CommandRegistry as CR
+participant "StringCommands\n(Command lambda)" as SC
+participant Store
+participant RespEncoder as RE
+
+Client -> CH : bytes: *3\\r\\n$3\\r\\nSET...
+activate CH
+CH -> RP : readCommand()
+RP --> CH : ["SET", "foo", "bar"]
+
+CH -> CD : dispatch(args, session)
+activate CD
+CD -> CD : name = "SET"
+note right of CD : session.inMulti() == false\nso not queued
+CD -> CR : get("SET")
+CR --> CD : Command
+CD -> SC : execute(["SET","foo","bar"])
+activate SC
+SC -> Store : set("foo", "bar")
+Store -> Store : data.put(...)\ntouch("foo")  // bump keyVersions
+Store --> SC
+SC -> RE : simpleString("OK")
+RE --> SC : bytes "+OK\\r\\n"
+SC --> CD : "+OK\\r\\n"
+deactivate SC
+CD --> CH : "+OK\\r\\n"
+deactivate CD
+
+CH -> Client : +OK\\r\\n
+deactivate CH
+
+@enduml

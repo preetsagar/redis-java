@@ -1,9 +1,8 @@
 package io.codecrafters.redis;
 
 import io.codecrafters.redis.client.ClientHandler;
-import io.codecrafters.redis.store.ListStore;
-import io.codecrafters.redis.store.Store;
-import io.codecrafters.redis.store.StreamStore;
+import io.codecrafters.redis.command.CommandDispatcher;
+import io.codecrafters.redis.store.Database;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -18,15 +17,14 @@ public class RedisServer {
     }
 
     public void start() {
-        Store store = new Store();
-        ListStore listStore = new ListStore();
-        StreamStore streamStore = new StreamStore();
+        Database db = new Database();
+        CommandDispatcher dispatcher = new CommandDispatcher(db);
         try {
             serverSocket = new ServerSocket(port);
             serverSocket.setReuseAddress(true);
             System.out.println("Server listening on port " + port);
             while (true) {
-                new Thread(new ClientHandler(serverSocket.accept(), store, listStore, streamStore)).start();
+                new Thread(new ClientHandler(serverSocket.accept(), dispatcher)).start();
             }
         } catch (IOException e) {
             if (!serverSocket.isClosed()) {

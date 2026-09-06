@@ -1,0 +1,49 @@
+@startuml flow-transaction
+title Flow of WATCH / MULTI / EXEC (with an optimistic-lock abort)
+
+actor "Client A" as A
+actor "Client B" as B
+participant "Dispatcher\n(shared)" as CD
+participant "Session A\n(per connection)" as SA
+participant Store
+
+== WATCH ==
+A -> CD : WATCH foo
+CD -> SA : watch("foo")
+SA -> Store : versionOf("foo")  => 7
+SA -> SA : watchedVersions = {foo: 7}
+CD --> A : +OK
+
+== MULTI ==
+A -> CD : MULTI
+CD -> SA : beginMulti()   // inMulti = true
+CD --> A : +OK
+
+A -> CD : INCR foo
+note right of CD : inMulti && not EXEC/DISCARD/WATCH
+CD -> SA : queue(["INCR","foo"])
+CD --> A : +QUEUED
+
+== another client mutates the watched key ==
+B -> CD : SET foo 99
+CD -> Store : set("foo","99")
+Store -> Store : touch("foo")  // keyVersions[foo] = 8
+
+== EXEC ==
+A -> CD : EXEC
+CD -> SA : inMulti()? yes
+CD -> SA : endMulti()
+CD -> SA : isAnyWatchedKeyDirty()
+SA -> Store : versionOf("foo")  => 8
+SA -> SA : 8 != snapshot 7  => DIRTY
+SA --> CD : true
+CD -> SA : clearQueue(); clearWatches()
+CD --> A : *-1\\r\\n   (nil — transaction aborted)
+
+note over CD, Store
+If NOT dirty: drainQueue(), then for each queued
+command call dispatch(cmd, session) recursively,
+concatenating replies into  *<n>\\r\\n ...
+end note
+
+@enduml
