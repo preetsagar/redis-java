@@ -100,15 +100,15 @@ public class ClientHandler implements Runnable {
                     out.write(results.toByteArray());
                 }
             }
-//            case "DISCARD" -> {
-//                if (!inMulti) {
-//                    out.write(RespEncoder.error("DISCARD without MULTI"));
-//                } else {
-//                    inMulti = false;
-//                    commandQueue.clear();
-//                    out.write(RespEncoder.simpleString("OK"));
-//                }
-//            }
+            case "DISCARD" -> {
+                if (!inMulti) {
+                    out.write(RespEncoder.error("DISCARD without MULTI"));
+                } else {
+                    inMulti = false;
+                    commandQueue.clear();
+                    out.write(RespEncoder.simpleString("OK"));
+                }
+            }
             case "RPUSH" -> out.write(RespEncoder.respInteger(listStore.rightPush(args.get(1), args.subList(2, args.size()))));
             case "LPUSH" -> out.write(RespEncoder.respInteger(listStore.leftPush(args.get(1), args.subList(2, args.size()))));
             case "LRANGE" -> {

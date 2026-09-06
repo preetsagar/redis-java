@@ -785,26 +785,26 @@ class MainTest {
         }
     }
 
-//    @Test
-//    void discardClearsQueue() throws Exception {
-//        try (Socket client = new Socket("localhost", PORT)) {
-//            InputStream in = client.getInputStream();
-//            byte[] buffer = new byte[1024];
-//
-//            client.getOutputStream().write(resp("MULTI").getBytes());
-//            in.read(buffer);
-//
-//            client.getOutputStream().write(resp("SET", "multi-key-3", "99").getBytes());
-//            in.read(buffer); // QUEUED
-//
-//            client.getOutputStream().write(resp("DISCARD").getBytes());
-//            assertEquals("+OK\r\n", new String(buffer, 0, in.read(buffer)));
-//
-//            // Key should not have been set
-//            client.getOutputStream().write(resp("GET", "multi-key-3").getBytes());
-//            assertEquals("$-1\r\n", new String(buffer, 0, in.read(buffer)));
-//        }
-//    }
+    @Test
+    void discardClearsQueue() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[1024];
+
+            client.getOutputStream().write(resp("MULTI").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("SET", "multi-key-3", "99").getBytes());
+            in.read(buffer); // QUEUED
+
+            client.getOutputStream().write(resp("DISCARD").getBytes());
+            assertEquals("+OK\r\n", new String(buffer, 0, in.read(buffer)));
+
+            // Key should not have been set
+            client.getOutputStream().write(resp("GET", "multi-key-3").getBytes());
+            assertEquals("$-1\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
 
     @Test
     void execResultsReflectActualExecution() throws Exception {
@@ -847,15 +847,15 @@ class MainTest {
         }
     }
 
-//    @Test
-//    void discardWithoutMultiReturnsError() throws Exception {
-//        try (Socket client = new Socket("localhost", PORT)) {
-//            client.getOutputStream().write(resp("DISCARD").getBytes());
-//            byte[] buffer = new byte[1024];
-//            String response = new String(buffer, 0, client.getInputStream().read(buffer));
-//            assertTrue(response.startsWith("-ERR"), "Expected error, got: " + response);
-//        }
-//    }
+    @Test
+    void discardWithoutMultiReturnsError() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write(resp("DISCARD").getBytes());
+            byte[] buffer = new byte[1024];
+            String response = new String(buffer, 0, client.getInputStream().read(buffer));
+            assertTrue(response.startsWith("-ERR"), "Expected error, got: " + response);
+        }
+    }
 
     @Test
     void execWithGetReturnsValue() throws Exception {
