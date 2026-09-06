@@ -5,6 +5,7 @@ import io.codecrafters.redis.protocol.RespParser;
 import io.codecrafters.redis.store.ListStore;
 import io.codecrafters.redis.store.Store;
 import io.codecrafters.redis.store.StreamStore;
+import io.codecrafters.redis.store.StreamStore.StreamEntry;
 
 import java.io.*;
 import java.net.Socket;
@@ -82,6 +83,10 @@ public class ClientHandler implements Runnable {
                     Thread.currentThread().interrupt();
                     out.write(RespEncoder.emptyList());
                 }
+            }
+            case "XRANGE" -> {
+                List<StreamEntry> entries = streamStore.xrange(args.get(1), args.get(2), args.get(3));
+                out.write(RespEncoder.encodeStreamEntries(entries));
             }
             case "XADD" -> {
                 try {

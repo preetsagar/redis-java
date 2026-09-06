@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class StreamStore {
 
@@ -29,6 +30,34 @@ public class StreamStore {
 
     public boolean hasKey(String key) {
         return data.containsKey(key);
+    }
+
+    public List<StreamEntry> xrange(String key, String startId, String endId) {
+        List<StreamEntry> entries = data.getOrDefault(key, new ArrayList<>());
+        long[] start = parseRangeId(startId, 0L);
+        long[] end = parseRangeId(endId, Long.MAX_VALUE);
+        return entries.stream()
+                .filter(e -> compareIds(parseId(e.id()), start) >= 0
+                          && compareIds(parseId(e.id()), end) <= 0)
+                .collect(Collectors.toList());
+    }
+
+    private long[] parseRangeId(String id, long defaultSeq) {
+        if (id.contains("-")) {
+            String[] parts = id.split("-");
+            return new long[]{Long.parseLong(parts[0]), Long.parseLong(parts[1])};
+        }
+        return new long[]{Long.parseLong(id), defaultSeq};
+    }
+
+    private long[] parseId(String id) {
+        String[] parts = id.split("-");
+        return new long[]{Long.parseLong(parts[0]), Long.parseLong(parts[1])};
+    }
+
+    private int compareIds(long[] a, long[] b) {
+        if (a[0] != b[0]) return Long.compare(a[0], b[0]);
+        return Long.compare(a[1], b[1]);
     }
 
     private boolean isGreaterThan(String id, String lastId) {

@@ -208,4 +208,76 @@ class StreamStoreTest {
         assertNotNull(id);
         assertTrue(id.contains("-"));
     }
+
+    // XRANGE
+
+    @Test
+    void xrangeReturnsAllEntries() {
+        streamStore.xadd("s", "1-0", List.of("a", "1"));
+        streamStore.xadd("s", "2-0", List.of("b", "2"));
+        streamStore.xadd("s", "3-0", List.of("c", "3"));
+        var result = streamStore.xrange("s", "1-0", "3-0");
+        assertEquals(3, result.size());
+        assertEquals("1-0", result.get(0).id());
+        assertEquals("3-0", result.get(2).id());
+    }
+
+    @Test
+    void xrangeReturnsSubset() {
+        streamStore.xadd("s", "1-0", List.of("a", "1"));
+        streamStore.xadd("s", "2-0", List.of("b", "2"));
+        streamStore.xadd("s", "3-0", List.of("c", "3"));
+        var result = streamStore.xrange("s", "2-0", "3-0");
+        assertEquals(2, result.size());
+        assertEquals("2-0", result.get(0).id());
+    }
+
+    @Test
+    void xrangeIsInclusive() {
+        streamStore.xadd("s", "1-0", List.of("a", "1"));
+        streamStore.xadd("s", "2-0", List.of("b", "2"));
+        var result = streamStore.xrange("s", "1-0", "2-0");
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void xrangeStartWithoutSequenceDefaultsToZero() {
+        streamStore.xadd("s", "1-0", List.of("a", "1"));
+        streamStore.xadd("s", "1-1", List.of("b", "2"));
+        // "1" without seq → start = 1-0
+        var result = streamStore.xrange("s", "1", "1-1");
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void xrangeEndWithoutSequenceDefaultsToMax() {
+        streamStore.xadd("s", "1-0", List.of("a", "1"));
+        streamStore.xadd("s", "1-5", List.of("b", "2"));
+        // "1" without seq → end = 1-MAX → includes all with millis 1
+        var result = streamStore.xrange("s", "1-0", "1");
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void xrangeExcludesOutOfRangeEntries() {
+        streamStore.xadd("s", "1-0", List.of("a", "1"));
+        streamStore.xadd("s", "2-0", List.of("b", "2"));
+        streamStore.xadd("s", "3-0", List.of("c", "3"));
+        var result = streamStore.xrange("s", "2-0", "2-0");
+        assertEquals(1, result.size());
+        assertEquals("2-0", result.get(0).id());
+    }
+
+    @Test
+    void xrangeOnMissingKeyReturnsEmpty() {
+        var result = streamStore.xrange("missing", "0-0", "9-9");
+        assertEquals(0, result.size());
+    }
+
+    @Test
+    void xrangeEntryFieldsArePreserved() {
+        streamStore.xadd("s", "1-0", List.of("temperature", "36", "humidity", "95"));
+        var result = streamStore.xrange("s", "1-0", "1-0");
+        assertEquals(List.of("temperature", "36", "humidity", "95"), result.get(0).fields());
+    }
 }

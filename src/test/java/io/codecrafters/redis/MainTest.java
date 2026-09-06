@@ -829,6 +829,110 @@ class MainTest {
     }
 
     @Test
+    void xrangeReturnsAllEntries() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[4096];
+
+            client.getOutputStream().write(resp("XADD", "xrange-1", "1-0", "temperature", "36", "humidity", "95").getBytes());
+            in.read(buffer);
+            client.getOutputStream().write(resp("XADD", "xrange-1", "2-0", "temperature", "37", "humidity", "94").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("XRANGE", "xrange-1", "1-0", "2-0").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+
+            // *2 entries, each entry is *2[id, *4[fields]]
+            assertTrue(response.startsWith("*2\r\n"), "Expected 2 entries, got: " + response);
+            assertTrue(response.contains("1-0"), "Should contain first entry ID");
+            assertTrue(response.contains("2-0"), "Should contain second entry ID");
+            assertTrue(response.contains("temperature"), "Should contain field name");
+            assertTrue(response.contains("36"), "Should contain field value");
+        }
+    }
+
+    @Test
+    void xrangeSingleEntry() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[4096];
+
+            client.getOutputStream().write(resp("XADD", "xrange-2", "1-0", "foo", "bar").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("XRANGE", "xrange-2", "1-0", "1-0").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+
+            assertEquals("*1\r\n*2\r\n$3\r\n1-0\r\n*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n", response);
+        }
+    }
+
+    @Test
+    void xrangeStartWithoutSequenceNumber() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[4096];
+
+            client.getOutputStream().write(resp("XADD", "xrange-3", "1-0", "a", "1").getBytes());
+            in.read(buffer);
+            client.getOutputStream().write(resp("XADD", "xrange-3", "1-1", "b", "2").getBytes());
+            in.read(buffer);
+
+            // Start "1" without seq → defaults to 1-0
+            client.getOutputStream().write(resp("XRANGE", "xrange-3", "1", "1-1").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+            assertTrue(response.startsWith("*2\r\n"), "Expected 2 entries, got: " + response);
+        }
+    }
+
+    @Test
+    void xrangeEndWithoutSequenceNumber() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[4096];
+
+            client.getOutputStream().write(resp("XADD", "xrange-4", "1-0", "a", "1").getBytes());
+            in.read(buffer);
+            client.getOutputStream().write(resp("XADD", "xrange-4", "1-9", "b", "2").getBytes());
+            in.read(buffer);
+
+            // End "1" without seq → defaults to 1-MAX → includes all seq under millis 1
+            client.getOutputStream().write(resp("XRANGE", "xrange-4", "1-0", "1").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+            assertTrue(response.startsWith("*2\r\n"), "Expected 2 entries, got: " + response);
+        }
+    }
+
+    @Test
+    void xrangeExcludesOutOfBoundsEntries() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[4096];
+
+            client.getOutputStream().write(resp("XADD", "xrange-5", "1-0", "a", "1").getBytes());
+            in.read(buffer);
+            client.getOutputStream().write(resp("XADD", "xrange-5", "2-0", "b", "2").getBytes());
+            in.read(buffer);
+            client.getOutputStream().write(resp("XADD", "xrange-5", "3-0", "c", "3").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("XRANGE", "xrange-5", "2-0", "2-0").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+            assertTrue(response.startsWith("*1\r\n"), "Expected 1 entry, got: " + response);
+            assertTrue(response.contains("2-0"));
+        }
+    }
+
+    @Test
+    void xrangeOnMissingKeyReturnsEmptyArray() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write(resp("XRANGE", "xrange-missing", "0-0", "9-9").getBytes());
+            byte[] buffer = new byte[1024];
+            assertEquals("*0\r\n", new String(buffer, 0, client.getInputStream().read(buffer)));
+        }
+    }
+
+    @Test
     void xaddFullWildcardGeneratedIdIsUsedForSubsequentValidation() throws Exception {
         try (Socket client = new Socket("localhost", PORT)) {
             InputStream in = client.getInputStream();

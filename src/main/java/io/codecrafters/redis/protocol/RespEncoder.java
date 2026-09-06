@@ -1,5 +1,6 @@
 package io.codecrafters.redis.protocol;
 
+import io.codecrafters.redis.store.StreamStore;
 import java.util.List;
 
 public class RespEncoder {
@@ -36,5 +37,20 @@ public class RespEncoder {
 
     public static byte[] RespInteger(Integer value) {
         return (":"+value+"\r\n").getBytes();
+    }
+
+    public static byte[] encodeStreamEntries(List<StreamStore.StreamEntry> entries) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("*").append(entries.size()).append("\r\n");
+        for (StreamStore.StreamEntry entry : entries) {
+            sb.append("*2\r\n");
+            sb.append("$").append(entry.id().length()).append("\r\n").append(entry.id()).append("\r\n");
+            List<String> fields = entry.fields();
+            sb.append("*").append(fields.size()).append("\r\n");
+            for (String field : fields) {
+                sb.append("$").append(field.length()).append("\r\n").append(field).append("\r\n");
+            }
+        }
+        return sb.toString().getBytes();
     }
 }
