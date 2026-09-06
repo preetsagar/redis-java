@@ -275,6 +275,33 @@ class StreamStoreTest {
     }
 
     @Test
+    void xrangeWithDashStartReturnsFromBeginning() {
+        streamStore.xadd("s", "1-0", List.of("a", "1"));
+        streamStore.xadd("s", "2-0", List.of("b", "2"));
+        var result = streamStore.xrange("s", "-", "2-0");
+        assertEquals(2, result.size());
+        assertEquals("1-0", result.get(0).id());
+    }
+
+    @Test
+    void xrangeWithPlusEndReturnsToEnd() {
+        streamStore.xadd("s", "1-0", List.of("a", "1"));
+        streamStore.xadd("s", "2-0", List.of("b", "2"));
+        var result = streamStore.xrange("s", "1-0", "+");
+        assertEquals(2, result.size());
+        assertEquals("2-0", result.get(1).id());
+    }
+
+    @Test
+    void xrangeWithDashAndPlusReturnsAll() {
+        streamStore.xadd("s", "1-0", List.of("a", "1"));
+        streamStore.xadd("s", "2-0", List.of("b", "2"));
+        streamStore.xadd("s", "3-0", List.of("c", "3"));
+        var result = streamStore.xrange("s", "-", "+");
+        assertEquals(3, result.size());
+    }
+
+    @Test
     void xrangeEntryFieldsArePreserved() {
         streamStore.xadd("s", "1-0", List.of("temperature", "36", "humidity", "95"));
         var result = streamStore.xrange("s", "1-0", "1-0");

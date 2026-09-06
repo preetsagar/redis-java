@@ -34,6 +34,8 @@ public class StreamStore {
 
     public List<StreamEntry> xrange(String key, String startId, String endId) {
         List<StreamEntry> entries = data.getOrDefault(key, new ArrayList<>());
+        if (startId.equals("-")) startId = "0-0";
+        if (endId.equals("+")) endId = Long.MAX_VALUE + "-" + Long.MAX_VALUE;
         long[] start = parseRangeId(startId, 0L);
         long[] end = parseRangeId(endId, Long.MAX_VALUE);
         return entries.stream()

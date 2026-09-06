@@ -924,6 +924,25 @@ class MainTest {
     }
 
     @Test
+    void xrangeWithDashStartReturnsFromBeginning() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[4096];
+
+            client.getOutputStream().write(resp("XADD", "xrange-dash", "1-0", "a", "1").getBytes());
+            in.read(buffer);
+            client.getOutputStream().write(resp("XADD", "xrange-dash", "2-0", "b", "2").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("XRANGE", "xrange-dash", "-", "2-0").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+            assertTrue(response.startsWith("*2\r\n"), "Expected 2 entries, got: " + response);
+            assertTrue(response.contains("1-0"), "Should contain first entry");
+            assertTrue(response.contains("2-0"), "Should contain second entry");
+        }
+    }
+
+    @Test
     void xrangeOnMissingKeyReturnsEmptyArray() throws Exception {
         try (Socket client = new Socket("localhost", PORT)) {
             client.getOutputStream().write(resp("XRANGE", "xrange-missing", "0-0", "9-9").getBytes());
