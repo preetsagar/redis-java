@@ -7,6 +7,8 @@ public class Store {
     private final HashMap<String, String> data = new HashMap<>();
     private final HashMap<String, Long> expiry = new HashMap<>();
 
+    private boolean isMultiCommandEnabled = false;
+
     public void set(String key, String value) {
         data.put(key, value);
         expiry.remove(key);
@@ -33,5 +35,14 @@ public class Store {
         current++;
         set(key, String.valueOf(current));
         return String.valueOf(current);
+    }
+
+
+    public boolean isMultiCommandEnabled() {
+        return isMultiCommandEnabled;
+    }
+
+    public void setMultiCommandEnabled(boolean multiCommandEnabled) {
+        isMultiCommandEnabled = multiCommandEnabled;
     }
 }
