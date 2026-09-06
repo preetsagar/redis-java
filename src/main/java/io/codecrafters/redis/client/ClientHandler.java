@@ -67,6 +67,9 @@ public class ClientHandler implements Runnable {
                     out.write(RespEncoder.error("value is not an integer or out of range"));
                 }
             }
+            case "MULTI" -> {
+                out.write(RespEncoder.simpleString("OK"));
+            }
             case "RPUSH" -> out.write(RespEncoder.respInteger(listStore.rightPush(args.get(1), args.subList(2, args.size()))));
             case "LPUSH" -> out.write(RespEncoder.respInteger(listStore.leftPush(args.get(1), args.subList(2, args.size()))));
             case "LRANGE" -> {
