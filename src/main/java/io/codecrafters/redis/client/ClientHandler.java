@@ -11,9 +11,9 @@ import java.io.*;
 import java.io.ByteArrayOutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 public class ClientHandler implements Runnable {
 
@@ -24,12 +24,8 @@ public class ClientHandler implements Runnable {
 
     private boolean inMulti = false;
     private final List<List<String>> commandQueue = new ArrayList<>();
-    private final Set<String> watchingKeys = new HashSet<>();
-    private volatile boolean isAnyWatchKeyUpdated = false;
-
-    public void setIsAnyWatchKeyUpdated(boolean flag) {
-        this.isAnyWatchKeyUpdated = flag;
-    }
+    // Key -> version snapshotted at WATCH time. EXEC aborts if any current version differs.
+    private final Map<String, Long> watchedVersions = new HashMap<>();
 
     public ClientHandler(Socket client, Store store, ListStore listStore, StreamStore streamStore) {
         this.client = client;
@@ -62,9 +58,12 @@ public class ClientHandler implements Runnable {
     }
 
     private void clearWatches() {
-        watchingKeys.forEach(key -> store.removeWatcher(key, this));
-        watchingKeys.clear();
-        isAnyWatchKeyUpdated = false;
+        watchedVersions.clear();
+    }
+
+    private boolean isAnyWatchedKeyDirty() {
+        return watchedVersions.entrySet().stream()
+                .anyMatch(e -> store.versionOf(e.getKey()) != e.getValue());
     }
 
     private void handleCommand(List<String> args, OutputStream out) throws IOException {
@@ -95,10 +94,8 @@ public class ClientHandler implements Runnable {
                     out.write(RespEncoder.error("WATCH inside MULTI is not allowed"));
                 }
                 else {
-                    List<String> keys = args.subList(1, args.size());
-                    for(String key : keys) {
-                        store.addWatcher(key, this);
-                        watchingKeys.add(key);
+                    for (String key : args.subList(1, args.size())) {
+                        watchedVersions.put(key, store.versionOf(key));
                     }
                     out.write(RespEncoder.simpleString("OK"));
                 }
@@ -126,7 +123,7 @@ public class ClientHandler implements Runnable {
             case "EXEC" -> {
                 if (!inMulti) {
                     out.write(RespEncoder.error("EXEC without MULTI"));
-                } else if (isAnyWatchKeyUpdated) {
+                } else if (isAnyWatchedKeyDirty()) {
                     inMulti = false;
                     commandQueue.clear();
                     clearWatches();
