@@ -70,6 +70,9 @@ public class ClientHandler implements Runnable {
             case "MULTI" -> {
                 out.write(RespEncoder.simpleString("OK"));
             }
+            case "EXEC" -> {
+                out.write(RespEncoder.error("EXEC without MULTI"));
+            }
             case "RPUSH" -> out.write(RespEncoder.respInteger(listStore.rightPush(args.get(1), args.subList(2, args.size()))));
             case "LPUSH" -> out.write(RespEncoder.respInteger(listStore.leftPush(args.get(1), args.subList(2, args.size()))));
             case "LRANGE" -> {
