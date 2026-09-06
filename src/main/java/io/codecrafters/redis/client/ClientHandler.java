@@ -150,6 +150,7 @@ public class ClientHandler implements Runnable {
                     out.write(RespEncoder.error("DISCARD without MULTI"));
                 } else {
                     inMulti = false;
+                    clearWatches();
                     commandQueue.clear();
                     out.write(RespEncoder.simpleString("OK"));
                 }
