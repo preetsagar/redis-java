@@ -900,6 +900,42 @@ class MainTest {
     }
 
     @Test
+    void execContinuesAfterCommandError() throws Exception {
+        // SET foo xyz → OK
+        // INCR foo    → ERR (xyz is not an integer)
+        // SET bar 7   → OK
+        // Other commands still execute despite the error in the middle
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[4096];
+
+            client.getOutputStream().write(resp("MULTI").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("SET", "multi-err-foo", "xyz").getBytes());
+            assertEquals("+QUEUED\r\n", new String(buffer, 0, in.read(buffer)));
+
+            client.getOutputStream().write(resp("INCR", "multi-err-foo").getBytes());
+            assertEquals("+QUEUED\r\n", new String(buffer, 0, in.read(buffer)));
+
+            client.getOutputStream().write(resp("SET", "multi-err-bar", "7").getBytes());
+            assertEquals("+QUEUED\r\n", new String(buffer, 0, in.read(buffer)));
+
+            client.getOutputStream().write(resp("EXEC").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+
+            // 3 results: OK, ERR, OK
+            assertTrue(response.startsWith("*3\r\n"), "Expected 3 results, got: " + response);
+            assertTrue(response.contains("+OK\r\n"), "Should contain OK for SET");
+            assertTrue(response.contains("-ERR"), "Should contain error for INCR on non-integer");
+
+            // bar should have been set despite the error on foo
+            client.getOutputStream().write(resp("GET", "multi-err-bar").getBytes());
+            assertEquals("$1\r\n7\r\n", new String(buffer, 0, in.read(buffer)));
+        }
+    }
+
+    @Test
     void xaddRejectsSameId() throws Exception {
         try (Socket client = new Socket("localhost", PORT)) {
             InputStream in = client.getInputStream();
