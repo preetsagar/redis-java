@@ -32,17 +32,25 @@ public class ClientHandler implements Runnable {
 
     @Override
     public void run() {
+        String clientInfo = client.getInetAddress().getHostAddress() + ":" + client.getPort();
+        System.out.println("[CONNECTED  " + clientInfo + "]");
         try (client;
              BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
              OutputStream out = client.getOutputStream()) {
             RespParser parser = new RespParser(in);
             List<String> args;
             while ((args = parser.readCommand()) != null) {
-                handleCommand(args, out);
+                System.out.println("[REQUEST  " + clientInfo + "] → " + args);
+                ByteArrayOutputStream buf = new ByteArrayOutputStream();
+                handleCommand(args, buf);
+                byte[] response = buf.toByteArray();
+                System.out.println("[RESPONSE " + clientInfo + "] ← " + new String(response).replace("\r\n", "\\r\\n"));
+                out.write(response);
             }
         } catch (IOException e) {
-            System.out.println("Client error: " + e.getMessage());
+            System.out.println("[ERROR]    " + clientInfo + " — " + e.getMessage());
         }
+        System.out.println("[DISCONNECTED] " + clientInfo);
     }
 
     private void handleCommand(List<String> args, OutputStream out) throws IOException {
