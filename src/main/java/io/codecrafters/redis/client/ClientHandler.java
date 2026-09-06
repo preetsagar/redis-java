@@ -89,18 +89,15 @@ public class ClientHandler implements Runnable {
                     out.write(RespEncoder.error("EXEC without MULTI"));
                 } else {
                     inMulti = false;
-                    out.write(RespEncoder.emptyArray());
-//                    inMulti = false;
-//                    ByteArrayOutputStream results = new ByteArrayOutputStream();
-//                    results.write(("*" + commandQueue.size() + "\r\n").getBytes());
-//                    for (List<String> queued : commandQueue) {
-//                        ByteArrayOutputStream cmdOut = new ByteArrayOutputStream();
-//                        handleCommand(queued, cmdOut);
-//                        results.write(cmdOut.toByteArray());
-//                    }
-//                    commandQueue.clear();
-//                    out.write(results.toByteArray());
-
+                    ByteArrayOutputStream results = new ByteArrayOutputStream();
+                    results.write(("*" + commandQueue.size() + "\r\n").getBytes());
+                    for (List<String> queued : commandQueue) {
+                        ByteArrayOutputStream cmdOut = new ByteArrayOutputStream();
+                        handleCommand(queued, cmdOut);
+                        results.write(cmdOut.toByteArray());
+                    }
+                    commandQueue.clear();
+                    out.write(results.toByteArray());
                 }
             }
 //            case "DISCARD" -> {
