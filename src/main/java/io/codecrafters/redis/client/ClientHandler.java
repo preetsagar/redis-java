@@ -22,6 +22,7 @@ public class ClientHandler implements Runnable {
 
     private boolean inMulti = false;
     private final List<List<String>> commandQueue = new ArrayList<>();
+    private final List<String> watchKeys = new ArrayList<>();
 
     public ClientHandler(Socket client, Store store, ListStore listStore, StreamStore streamStore) {
         this.client = client;
@@ -57,7 +58,7 @@ public class ClientHandler implements Runnable {
         String cmd = args.get(0).toUpperCase();
 
         // Queue all commands inside MULTI (except EXEC itself)
-        if (inMulti && !cmd.equals("EXEC") && !cmd.equals("DISCARD")) {
+        if (inMulti && !cmd.equals("EXEC") && !cmd.equals("DISCARD")&& !cmd.equals("WATCH")) {
             commandQueue.add(args);
             out.write(RespEncoder.simpleString("QUEUED"));
             return;
@@ -77,8 +78,14 @@ public class ClientHandler implements Runnable {
                 out.write(RespEncoder.simpleString("OK"));
             }
             case "WATCH" -> {
-                String key = args.get(1);
-                out.write(RespEncoder.simpleString("OK"));
+                if(inMulti) {
+                    out.write(RespEncoder.error("WATCH inside MULTI is not allowed"));
+                }
+                else {
+                    String key = args.get(1);
+                    watchKeys.add(key);
+                    out.write(RespEncoder.simpleString("OK"));
+                }
             }
             case "GET" -> {
                 String value = store.get(args.get(1));
