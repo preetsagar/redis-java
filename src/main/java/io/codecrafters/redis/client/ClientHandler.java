@@ -85,11 +85,16 @@ public class ClientHandler implements Runnable {
                 }
             }
             case "XREAD" -> {
-                // Syntax: XREAD STREAMS <key> <id>
-                String key = args.get(2);
-                String afterId = args.get(3);
-                List<StreamEntry> entries = streamStore.xread(key, afterId);
-                out.write(RespEncoder.encodeXRead(key, entries));
+                // Syntax: XREAD STREAMS <key1> [key2 ...] <id1> [id2 ...]
+                // args: [XREAD, STREAMS, key1, ..., keyN, id1, ..., idN]
+                int streamCount = (args.size() - 2) / 2;
+                List<String> keys = args.subList(2, 2 + streamCount);
+                List<String> ids = args.subList(2 + streamCount, args.size());
+                List<List<StreamEntry>> allEntries = new java.util.ArrayList<>();
+                for (int i = 0; i < streamCount; i++) {
+                    allEntries.add(streamStore.xread(keys.get(i), ids.get(i)));
+                }
+                out.write(RespEncoder.encodeXRead(keys, allEntries));
             }
             case "XRANGE" -> {
                 List<StreamEntry> entries = streamStore.xrange(args.get(1), args.get(2), args.get(3));

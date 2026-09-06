@@ -1008,6 +1008,37 @@ class MainTest {
     }
 
     @Test
+    void xreadMultipleStreams() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[4096];
+
+            // Populate two streams
+            client.getOutputStream().write(resp("XADD", "xread-ms-1", "1-0", "a", "1").getBytes());
+            in.read(buffer);
+            client.getOutputStream().write(resp("XADD", "xread-ms-1", "2-0", "b", "2").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("XADD", "xread-ms-2", "3-0", "c", "3").getBytes());
+            in.read(buffer);
+            client.getOutputStream().write(resp("XADD", "xread-ms-2", "4-0", "d", "4").getBytes());
+            in.read(buffer);
+
+            // Read from both: entries after 1-0 from xread-ms-1, entries after 3-0 from xread-ms-2
+            client.getOutputStream().write(resp("XREAD", "STREAMS", "xread-ms-1", "xread-ms-2", "1-0", "3-0").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+
+            assertTrue(response.startsWith("*2\r\n"), "Expected 2 streams, got: " + response);
+            assertTrue(response.contains("xread-ms-1"), "Should contain first key");
+            assertTrue(response.contains("xread-ms-2"), "Should contain second key");
+            assertTrue(response.contains("2-0"), "Should contain xread-ms-1 entry after 1-0");
+            assertTrue(response.contains("4-0"), "Should contain xread-ms-2 entry after 3-0");
+            assertFalse(response.contains("1-0\r\n"), "Should NOT contain excluded 1-0");
+            assertFalse(response.contains("3-0\r\n"), "Should NOT contain excluded 3-0");
+        }
+    }
+
+    @Test
     void xrangeWithDashStartReturnsFromBeginning() throws Exception {
         try (Socket client = new Socket("localhost", PORT)) {
             InputStream in = client.getInputStream();
