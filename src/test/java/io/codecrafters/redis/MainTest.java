@@ -924,6 +924,90 @@ class MainTest {
     }
 
     @Test
+    void xreadReturnsEntriesAfterGivenId() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[4096];
+
+            client.getOutputStream().write(resp("XADD", "xread-1", "1-0", "temperature", "36", "humidity", "95").getBytes());
+            in.read(buffer);
+            client.getOutputStream().write(resp("XADD", "xread-1", "2-0", "temperature", "37", "humidity", "94").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("XREAD", "STREAMS", "xread-1", "1-0").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+
+            // *1 stream, *2 [key, entries], key=xread-1, *1 entry
+            assertTrue(response.startsWith("*1\r\n*2\r\n"), "Expected XREAD wrapper, got: " + response);
+            assertTrue(response.contains("xread-1"), "Should contain stream key");
+            assertTrue(response.contains("2-0"), "Should contain second entry ID");
+            assertFalse(response.contains("1-0\r\n"), "Should NOT contain first entry (exclusive)");
+        }
+    }
+
+    @Test
+    void xreadIsExclusiveOfGivenId() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[4096];
+
+            client.getOutputStream().write(resp("XADD", "xread-2", "1-0", "foo", "bar").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("XREAD", "STREAMS", "xread-2", "1-0").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+            // No entries after 1-0, so the entries array is *0
+            assertTrue(response.contains("*0\r\n"), "Expected empty entries array, got: " + response);
+        }
+    }
+
+    @Test
+    void xreadExactRespEncoding() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[4096];
+
+            client.getOutputStream().write(resp("XADD", "xread-3", "1-0", "foo", "bar").getBytes());
+            in.read(buffer);
+            client.getOutputStream().write(resp("XADD", "xread-3", "2-0", "baz", "qux").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("XREAD", "STREAMS", "xread-3", "1-0").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+
+            String expected =
+                    "*1\r\n" +
+                    "*2\r\n" +
+                    "$7\r\nxread-3\r\n" +
+                    "*1\r\n" +
+                    "*2\r\n" +
+                    "$3\r\n2-0\r\n" +
+                    "*2\r\n" +
+                    "$3\r\nbaz\r\n" +
+                    "$3\r\nqux\r\n";
+            assertEquals(expected, response);
+        }
+    }
+
+    @Test
+    void xreadFromZeroReturnsAllEntries() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            InputStream in = client.getInputStream();
+            byte[] buffer = new byte[4096];
+
+            client.getOutputStream().write(resp("XADD", "xread-4", "1-0", "a", "1").getBytes());
+            in.read(buffer);
+            client.getOutputStream().write(resp("XADD", "xread-4", "2-0", "b", "2").getBytes());
+            in.read(buffer);
+
+            client.getOutputStream().write(resp("XREAD", "STREAMS", "xread-4", "0-0").getBytes());
+            String response = new String(buffer, 0, in.read(buffer));
+            assertTrue(response.contains("1-0"), "Should contain first entry");
+            assertTrue(response.contains("2-0"), "Should contain second entry");
+        }
+    }
+
+    @Test
     void xrangeWithDashStartReturnsFromBeginning() throws Exception {
         try (Socket client = new Socket("localhost", PORT)) {
             InputStream in = client.getInputStream();

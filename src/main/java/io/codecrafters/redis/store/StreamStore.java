@@ -32,6 +32,15 @@ public class StreamStore {
         return data.containsKey(key);
     }
 
+    // Returns entries strictly greater than afterId (exclusive).
+    public List<StreamEntry> xread(String key, String afterId) {
+        List<StreamEntry> entries = data.getOrDefault(key, new ArrayList<>());
+        long[] after = parseId(afterId);
+        return entries.stream()
+                .filter(e -> compareIds(parseId(e.id()), after) > 0)
+                .collect(Collectors.toList());
+    }
+
     public List<StreamEntry> xrange(String key, String startId, String endId) {
         List<StreamEntry> entries = data.getOrDefault(key, new ArrayList<>());
         if (startId.equals("-")) startId = "0-0";

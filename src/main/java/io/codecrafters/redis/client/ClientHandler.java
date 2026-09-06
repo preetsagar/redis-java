@@ -84,6 +84,13 @@ public class ClientHandler implements Runnable {
                     out.write(RespEncoder.emptyList());
                 }
             }
+            case "XREAD" -> {
+                // Syntax: XREAD STREAMS <key> <id>
+                String key = args.get(2);
+                String afterId = args.get(3);
+                List<StreamEntry> entries = streamStore.xread(key, afterId);
+                out.write(RespEncoder.encodeXRead(key, entries));
+            }
             case "XRANGE" -> {
                 List<StreamEntry> entries = streamStore.xrange(args.get(1), args.get(2), args.get(3));
                 out.write(RespEncoder.encodeStreamEntries(entries));

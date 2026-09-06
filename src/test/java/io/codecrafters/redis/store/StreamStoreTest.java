@@ -274,6 +274,48 @@ class StreamStoreTest {
         assertEquals(0, result.size());
     }
 
+    // XREAD
+
+    @Test
+    void xreadReturnsEntriesAfterGivenId() {
+        streamStore.xadd("s", "1-0", List.of("a", "1"));
+        streamStore.xadd("s", "2-0", List.of("b", "2"));
+        streamStore.xadd("s", "3-0", List.of("c", "3"));
+        var result = streamStore.xread("s", "1-0");
+        assertEquals(2, result.size());
+        assertEquals("2-0", result.get(0).id());
+        assertEquals("3-0", result.get(1).id());
+    }
+
+    @Test
+    void xreadIsExclusive() {
+        streamStore.xadd("s", "1-0", List.of("a", "1"));
+        var result = streamStore.xread("s", "1-0");
+        assertEquals(0, result.size());
+    }
+
+    @Test
+    void xreadFromZeroReturnsAll() {
+        streamStore.xadd("s", "1-0", List.of("a", "1"));
+        streamStore.xadd("s", "2-0", List.of("b", "2"));
+        var result = streamStore.xread("s", "0-0");
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void xreadOnMissingKeyReturnsEmpty() {
+        var result = streamStore.xread("missing", "0-0");
+        assertEquals(0, result.size());
+    }
+
+    @Test
+    void xreadEntryFieldsArePreserved() {
+        streamStore.xadd("s", "1-0", List.of("temperature", "36", "humidity", "95"));
+        streamStore.xadd("s", "2-0", List.of("temperature", "37"));
+        var result = streamStore.xread("s", "1-0");
+        assertEquals(List.of("temperature", "37"), result.get(0).fields());
+    }
+
     @Test
     void xrangeWithDashStartReturnsFromBeginning() {
         streamStore.xadd("s", "1-0", List.of("a", "1"));
