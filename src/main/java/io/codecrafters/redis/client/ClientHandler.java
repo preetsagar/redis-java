@@ -11,7 +11,9 @@ import java.io.*;
 import java.io.ByteArrayOutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class ClientHandler implements Runnable {
 
@@ -22,7 +24,12 @@ public class ClientHandler implements Runnable {
 
     private boolean inMulti = false;
     private final List<List<String>> commandQueue = new ArrayList<>();
-    private final List<String> watchKeys = new ArrayList<>();
+    private final Set<String> watchingKeys = new HashSet<>();
+    private volatile boolean isAnyWatchKeyUpdated = false;
+
+    public void setIsAnyWatchKeyUpdated(boolean flag) {
+        this.isAnyWatchKeyUpdated = flag;
+    }
 
     public ClientHandler(Socket client, Store store, ListStore listStore, StreamStore streamStore) {
         this.client = client;
@@ -54,6 +61,12 @@ public class ClientHandler implements Runnable {
         System.out.println("[DISCONNECTED] " + clientInfo);
     }
 
+    private void clearWatches() {
+        watchingKeys.forEach(key -> store.removeWatcher(key, this));
+        watchingKeys.clear();
+        isAnyWatchKeyUpdated = false;
+    }
+
     private void handleCommand(List<String> args, OutputStream out) throws IOException {
         String cmd = args.get(0).toUpperCase();
 
@@ -83,7 +96,8 @@ public class ClientHandler implements Runnable {
                 }
                 else {
                     String key = args.get(1);
-                    watchKeys.add(key);
+                    store.addWatcher(key, this);
+                    watchingKeys.add(key);
                     out.write(RespEncoder.simpleString("OK"));
                 }
             }
@@ -106,6 +120,11 @@ public class ClientHandler implements Runnable {
             case "EXEC" -> {
                 if (!inMulti) {
                     out.write(RespEncoder.error("EXEC without MULTI"));
+                } else if (isAnyWatchKeyUpdated) {
+                    inMulti = false;
+                    commandQueue.clear();
+                    clearWatches();
+                    out.write(RespEncoder.emptyList());
                 } else {
                     inMulti = false;
                     ByteArrayOutputStream results = new ByteArrayOutputStream();
@@ -116,6 +135,7 @@ public class ClientHandler implements Runnable {
                         results.write(cmdOut.toByteArray());
                     }
                     commandQueue.clear();
+                    clearWatches();
                     out.write(results.toByteArray());
                 }
             }
