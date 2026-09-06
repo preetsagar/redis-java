@@ -8,6 +8,7 @@ import io.codecrafters.redis.store.StreamStore;
 import io.codecrafters.redis.store.StreamStore.StreamEntry;
 
 import java.io.*;
+import java.io.ByteArrayOutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +19,9 @@ public class ClientHandler implements Runnable {
     private final Store store;
     private final ListStore listStore;
     private final StreamStore streamStore;
+
+    private boolean inMulti = false;
+    private final List<List<String>> commandQueue = new ArrayList<>();
 
     public ClientHandler(Socket client, Store store, ListStore listStore, StreamStore streamStore) {
         this.client = client;
@@ -42,7 +46,16 @@ public class ClientHandler implements Runnable {
     }
 
     private void handleCommand(List<String> args, OutputStream out) throws IOException {
-        switch (args.get(0).toUpperCase()) {
+        String cmd = args.get(0).toUpperCase();
+
+        // Queue all commands inside MULTI (except EXEC itself)
+        if (inMulti && !cmd.equals("EXEC") && !cmd.equals("DISCARD")) {
+            commandQueue.add(args);
+            out.write(RespEncoder.simpleString("QUEUED"));
+            return;
+        }
+
+        switch (cmd) {
             case "PING" -> out.write(RespEncoder.simpleString("PONG"));
             case "ECHO" -> out.write(RespEncoder.bulkString(args.get(1)));
             case "SET" -> {
@@ -68,17 +81,37 @@ public class ClientHandler implements Runnable {
                 }
             }
             case "MULTI" -> {
-                store.setMultiCommandEnabled(true);
+                inMulti = true;
                 out.write(RespEncoder.simpleString("OK"));
             }
             case "EXEC" -> {
-                if(store.isMultiCommandEnabled()) {
-                    store.setMultiCommandEnabled(false);
-                    out.write(RespEncoder.emptyArray());
-                }else {
+                if (!inMulti) {
                     out.write(RespEncoder.error("EXEC without MULTI"));
+                } else {
+                    inMulti = false;
+                    out.write(RespEncoder.emptyArray());
+//                    inMulti = false;
+//                    ByteArrayOutputStream results = new ByteArrayOutputStream();
+//                    results.write(("*" + commandQueue.size() + "\r\n").getBytes());
+//                    for (List<String> queued : commandQueue) {
+//                        ByteArrayOutputStream cmdOut = new ByteArrayOutputStream();
+//                        handleCommand(queued, cmdOut);
+//                        results.write(cmdOut.toByteArray());
+//                    }
+//                    commandQueue.clear();
+//                    out.write(results.toByteArray());
+
                 }
             }
+//            case "DISCARD" -> {
+//                if (!inMulti) {
+//                    out.write(RespEncoder.error("DISCARD without MULTI"));
+//                } else {
+//                    inMulti = false;
+//                    commandQueue.clear();
+//                    out.write(RespEncoder.simpleString("OK"));
+//                }
+//            }
             case "RPUSH" -> out.write(RespEncoder.respInteger(listStore.rightPush(args.get(1), args.subList(2, args.size()))));
             case "LPUSH" -> out.write(RespEncoder.respInteger(listStore.leftPush(args.get(1), args.subList(2, args.size()))));
             case "LRANGE" -> {
