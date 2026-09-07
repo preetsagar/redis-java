@@ -14,12 +14,15 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * A replica ({@code --replicaof}) must run the handshake against its master on
- * startup: {@code PING}, then {@code REPLCONF listening-port <port>}, then
- * {@code REPLCONF capa psync2}, waiting for a reply after each. Here a plain
- * {@link ServerSocket} plays the master and drives the dialogue.
+ * A replica ({@code --replicaof}) must run the replication handshake against its
+ * master on startup: {@code PING}, {@code REPLCONF listening-port <port>},
+ * {@code REPLCONF capa psync2}, then {@code PSYNC ? -1} — waiting for a reply
+ * after each. Here a plain {@link ServerSocket} plays the master and drives the
+ * dialogue.
  */
 class ReplicationHandshakeIT {
+
+    private static final String MASTER_REPLID = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
 
     private RedisServer replica;
 
@@ -33,7 +36,7 @@ class ReplicationHandshakeIT {
     }
 
     @Test
-    void replicaRunsPingAndReplconfHandshake() throws Exception {
+    void replicaRunsFullHandshake() throws Exception {
         int replicaPort = freePort();
 
         try (ServerSocket master = new ServerSocket(0)) {
@@ -48,24 +51,30 @@ class ReplicationHandshakeIT {
             replicaThread.start();
 
             try (Socket conn = master.accept()) {
+                conn.setSoTimeout(2000); // fail fast instead of hanging if the replica stalls
                 RespParser fromReplica = new RespParser(
                         new BufferedReader(new InputStreamReader(conn.getInputStream())));
                 OutputStream toReplica = conn.getOutputStream();
 
                 assertEquals(List.of("PING"), fromReplica.readCommand());
-                toReplica.write("+PONG\r\n".getBytes());
-                toReplica.flush();
+                reply(toReplica, "+PONG\r\n");
 
                 assertEquals(List.of("REPLCONF", "listening-port", String.valueOf(replicaPort)),
                         fromReplica.readCommand());
-                toReplica.write("+OK\r\n".getBytes());
-                toReplica.flush();
+                reply(toReplica, "+OK\r\n");
 
                 assertEquals(List.of("REPLCONF", "capa", "psync2"), fromReplica.readCommand());
-                toReplica.write("+OK\r\n".getBytes());
-                toReplica.flush();
+                reply(toReplica, "+OK\r\n");
+
+                assertEquals(List.of("PSYNC", "?", "-1"), fromReplica.readCommand());
+                reply(toReplica, "+FULLRESYNC " + MASTER_REPLID + " 0\r\n");
             }
         }
+    }
+
+    private static void reply(OutputStream out, String resp) throws Exception {
+        out.write(resp.getBytes());
+        out.flush();
     }
 
     private static int freePort() throws Exception {

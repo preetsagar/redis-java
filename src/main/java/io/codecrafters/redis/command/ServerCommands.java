@@ -1,16 +1,19 @@
 package io.codecrafters.redis.command;
 
-import io.codecrafters.redis.RedisServer;
+import io.codecrafters.redis.ReplicationInfo;
 import io.codecrafters.redis.protocol.RespEncoder;
 
-public class ServerCommands extends CommandGroup{
+public class ServerCommands extends CommandGroup {
 
-    public ServerCommands() {
-        add("INFO", args ->
-                RespEncoder.multiBulkString("role:"+RedisServer.getRole(),
-                        "master_replid:"+RedisServer.getMaster_replid(),
-                        "master_repl_offset:"+RedisServer.getMaster_repl_offset())
-        );
+    public ServerCommands(ReplicationInfo replication) {
+        add("INFO", args -> RespEncoder.multiBulkString(
+                "role:" + replication.role(),
+                "master_replid:" + replication.replId(),
+                "master_repl_offset:" + replication.replOffset()));
+
         add("REPLCONF", args -> RespEncoder.simpleString("OK"));
+
+        add("PSYNC", args ->
+                RespEncoder.simpleString("FULLRESYNC " + replication.replId() + " 0"));
     }
 }

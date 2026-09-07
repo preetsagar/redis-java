@@ -1,5 +1,6 @@
 package io.codecrafters.redis.command;
 
+import io.codecrafters.redis.ReplicationInfo;
 import io.codecrafters.redis.client.ClientSession;
 import io.codecrafters.redis.protocol.RespEncoder;
 import io.codecrafters.redis.store.Database;
@@ -17,9 +18,9 @@ public class CommandDispatcher {
     private final Database db;
     private final CommandRegistry registry;
 
-    public CommandDispatcher(Database db) {
+    public CommandDispatcher(Database db, ReplicationInfo replication) {
         this.db = db;
-        this.registry = new CommandRegistry(db);
+        this.registry = new CommandRegistry(db, replication);
     }
 
     /** A fresh session for a newly connected client. */

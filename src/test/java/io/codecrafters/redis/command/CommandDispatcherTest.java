@@ -1,5 +1,6 @@
 package io.codecrafters.redis.command;
 
+import io.codecrafters.redis.ReplicationInfo;
 import io.codecrafters.redis.client.ClientSession;
 import io.codecrafters.redis.store.Database;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,7 +23,7 @@ class CommandDispatcherTest {
 
     @BeforeEach
     void setUp() {
-        dispatcher = new CommandDispatcher(new Database());
+        dispatcher = new CommandDispatcher(new Database(), new ReplicationInfo("master"));
         session = dispatcher.newSession();
     }
 
@@ -62,6 +63,35 @@ class CommandDispatcherTest {
         String reply = send("INFO", "replication");
         assertTrue(reply.startsWith("$"), reply);
         assertTrue(reply.contains("master_repl_offset:"), reply);
+    }
+
+    // --- master side of the replication handshake ---
+
+    @Test
+    void replconfListeningPortIsAcknowledged() {
+        assertEquals("+OK\r\n", send("REPLCONF", "listening-port", "6380"));
+    }
+
+    @Test
+    void replconfCapaIsAcknowledged() {
+        assertEquals("+OK\r\n", send("REPLCONF", "capa", "psync2"));
+    }
+
+    @Test
+    void psyncRepliesWithFullResync() {
+        String reply = send("PSYNC", "?", "-1");
+        assertTrue(reply.startsWith("+FULLRESYNC "), reply);
+        assertTrue(reply.endsWith(" 0\r\n"), reply);
+        // exactly one leading '+' — guards against simpleString("+FULLRESYNC ...")
+        assertFalse(reply.startsWith("++"), reply);
+    }
+
+    @Test
+    void psyncReplidIsFortyHexChars() {
+        String reply = send("PSYNC", "?", "-1");
+        // "+FULLRESYNC <replid> 0\r\n"
+        String replid = reply.substring("+FULLRESYNC ".length(), reply.indexOf(" 0\r\n"));
+        assertTrue(replid.matches("[0-9a-f]{40}"), "replid should be 40 hex chars, got: " + replid);
     }
 
     // --- MULTI / EXEC / DISCARD ---

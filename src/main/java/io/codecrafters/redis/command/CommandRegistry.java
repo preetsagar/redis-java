@@ -1,5 +1,6 @@
 package io.codecrafters.redis.command;
 
+import io.codecrafters.redis.ReplicationInfo;
 import io.codecrafters.redis.store.Database;
 
 import java.util.HashMap;
@@ -14,13 +15,13 @@ public class CommandRegistry {
 
     private final Map<String, Command> commands = new HashMap<>();
 
-    public CommandRegistry(Database db) {
+    public CommandRegistry(Database db, ReplicationInfo replication) {
         register(new ConnectionCommands());
         register(new StringCommands(db.stringStore()));
         register(new ListCommands(db.listStore()));
         register(new StreamCommands(db.streamStore()));
         register(new KeyCommands(db));
-        register(new ServerCommands());
+        register(new ServerCommands(replication));
     }
 
     private void register(CommandGroup group) {

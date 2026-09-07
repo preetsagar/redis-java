@@ -18,36 +18,18 @@ import static io.codecrafters.redis.Main.getParsed;
 public class RedisServer {
 
     private final int port;
+    private final ReplicationInfo replication;
     private ServerSocket serverSocket;
-    private static String role;
-    private static String master_replid;
-
-    public static Long getMaster_repl_offset() {
-        return master_repl_offset;
-    }
-
-    public static String getMaster_replid() {
-        return master_replid;
-    }
-
-    private static Long master_repl_offset;
-
-    public static String getRole() {
-        return role;
-    }
-
 
     public RedisServer(int port, String role) {
         this.port = port;
-        RedisServer.role = role;
-        master_replid = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
-        master_repl_offset = 0l;
+        this.replication = new ReplicationInfo(role);
     }
 
     public void start() {
         Database db = new Database();
-        CommandDispatcher dispatcher = new CommandDispatcher(db);
-        if (role.equals("slave")) {
+        CommandDispatcher dispatcher = new CommandDispatcher(db, replication);
+        if (replication.role().equals("slave")) {
             handshakeWithMaster();
         }
         try {
@@ -80,6 +62,9 @@ public class RedisServer {
 
             send(out, "REPLCONF", "capa", "psync2");
             in.readLine();      // +OK
+
+            send(out, "PSYNC", "?", "-1");
+            in.readLine();
         } catch (IOException e) {
             System.out.println("[Error] : Failed while connecting to master " + e.getMessage());
         }
