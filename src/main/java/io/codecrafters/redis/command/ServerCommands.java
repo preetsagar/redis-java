@@ -11,5 +11,6 @@ public class ServerCommands extends CommandGroup{
                         "master_replid:"+RedisServer.getMaster_replid(),
                         "master_repl_offset:"+RedisServer.getMaster_repl_offset())
         );
+        add("REPLCONF", args -> RespEncoder.simpleString("OK"));
     }
 }

@@ -5,7 +5,9 @@ import io.codecrafters.redis.command.CommandDispatcher;
 import io.codecrafters.redis.protocol.RespEncoder;
 import io.codecrafters.redis.store.Database;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -45,20 +47,13 @@ public class RedisServer {
     public void start() {
         Database db = new Database();
         CommandDispatcher dispatcher = new CommandDispatcher(db);
-        if(role.equals("slave")) {
-            try {
-                Socket socket = new Socket(getParsed().get("MASTER_HOST"), Integer.parseInt(Main.getParsed().get("MASTER_PORT")));
-                OutputStream out = socket.getOutputStream();
-                out.write(RespEncoder.encodeList(List.of("PING")));
-            } catch (IOException e) {
-                // throw new RuntimeException(e);
-                System.out.println("[Error] : Failed while connecting to master "  + e.getMessage());
-            }
+        if (role.equals("slave")) {
+            handshakeWithMaster();
         }
         try {
             serverSocket = new ServerSocket(port);
             serverSocket.setReuseAddress(true);
-            System.out.println("Server listening on port " + port);
+            // System.out.println("Server listening on port " + port);
             while (true) {
                 new Thread(new ClientHandler(serverSocket.accept(), dispatcher)).start();
             }
@@ -67,6 +62,32 @@ public class RedisServer {
                 System.out.println("Server error: " + e.getMessage());
             }
         }
+    }
+
+    private void handshakeWithMaster() {
+        String masterHost = getParsed().get("MASTER_HOST");
+        int masterPort = Integer.parseInt(getParsed().get("MASTER_PORT"));
+        try {
+            Socket socket = new Socket(masterHost, masterPort);
+            OutputStream out = socket.getOutputStream();
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+            send(out, "PING");
+            in.readLine();      // +PONG
+
+            send(out, "REPLCONF", "listening-port", String.valueOf(port));
+            in.readLine();      // +OK
+
+            send(out, "REPLCONF", "capa", "psync2");
+            in.readLine();      // +OK
+        } catch (IOException e) {
+            System.out.println("[Error] : Failed while connecting to master " + e.getMessage());
+        }
+    }
+
+    private static void send(OutputStream out, String... args) throws IOException {
+        out.write(RespEncoder.encodeList(List.of(args)));
+        out.flush();
     }
 
     public void stop() {
