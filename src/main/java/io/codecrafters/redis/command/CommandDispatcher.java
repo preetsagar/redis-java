@@ -24,10 +24,12 @@ public class CommandDispatcher {
     private final Database db;
     private final CommandRegistry registry;
     private final Replicas replicas;
+    private final ReplicationInfo replication;
 
     public CommandDispatcher(Database db, ReplicationInfo replication, Replicas replicas) {
         this.db = db;
         this.replicas = replicas;
+        this.replication = replication;
         this.registry = new CommandRegistry(db, replication, replicas);
     }
 
@@ -67,7 +69,9 @@ public class CommandDispatcher {
                 }
                 byte[] reply = command.execute(args);
                 if (WRITE_COMMANDS.contains(commandName)) {
-                    replicas.propagate(RespEncoder.encodeList(args));
+                    byte[] writeCommand = RespEncoder.encodeList(args);
+                    replicas.propagate(writeCommand);
+                    replication.addReplOffset(writeCommand.length);
                 }
                 yield reply;
             }

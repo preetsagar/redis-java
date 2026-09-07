@@ -59,7 +59,7 @@ class MasterReplicaIT {
         start(replicaPort, "slave");
         awaitListening(replicaPort);
 
-        awaitConnectedSlaves(masterPort); // replica must be registered before we write
+        awaitConnectedSlaves(masterPort, 1); // replica must be registered before we write
 
         try (Socket writer = new Socket("localhost", masterPort)) {
             writer.setSoTimeout(2000);
@@ -73,14 +73,57 @@ class MasterReplicaIT {
         assertEquals("$1\r\n9\r\n", awaitGet(replicaPort, "counter"));
     }
 
-    private static void awaitConnectedSlaves(int masterPort) throws Exception {
+    @Test
+    void waitReturnsHowManyReplicasAckedTheLatestWrite() throws Exception {
+        int masterPort = freePort();
+        start(masterPort, "master");
+        awaitListening(masterPort);
+
+        Main.getParsed().put("MASTER_HOST", "localhost");
+        Main.getParsed().put("MASTER_PORT", String.valueOf(masterPort));
+        start(freePort(), "slave");
+        start(freePort(), "slave");
+        awaitConnectedSlaves(masterPort, 2);
+
+        try (Socket client = new Socket("localhost", masterPort)) {
+            client.setSoTimeout(3000);
+
+            client.getOutputStream().write(resp("SET", "foo", "123"));
+            assertEquals("+OK\r\n", new String(client.getInputStream().readNBytes(5)));
+
+            // both replicas process the write and ACK well within the timeout
+            client.getOutputStream().write(resp("WAIT", "2", "1000"));
+            assertEquals(":2\r\n", readReply(client));
+
+            // asking for more replicas than exist: returns 2 once the timeout expires
+            long start = System.currentTimeMillis();
+            client.getOutputStream().write(resp("WAIT", "5", "300"));
+            assertEquals(":2\r\n", readReply(client));
+            assertTrue(System.currentTimeMillis() - start >= 250, "WAIT should have blocked ~timeout");
+        }
+    }
+
+    private static String readReply(Socket client) throws Exception {
+        java.io.InputStream in = client.getInputStream();
+        StringBuilder sb = new StringBuilder();
+        int c;
+        while ((c = in.read()) != -1) {
+            sb.append((char) c);
+            if (c == '\n') {
+                break;
+            }
+        }
+        return sb.toString();
+    }
+
+    private static void awaitConnectedSlaves(int masterPort, int n) throws Exception {
         for (int attempt = 0; attempt < 100; attempt++) {
-            if (infoReplication(masterPort).contains("connected_slaves:1")) {
+            if (infoReplication(masterPort).contains("connected_slaves:" + n)) {
                 return;
             }
             Thread.sleep(20);
         }
-        fail("master never registered the replica");
+        fail("master never registered " + n + " replica(s)");
     }
 
     // Polls GET on the replica until it returns a non-null value (replication is async).

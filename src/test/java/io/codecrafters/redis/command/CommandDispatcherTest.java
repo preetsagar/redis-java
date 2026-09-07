@@ -79,6 +79,17 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void waitWithNoWritesYetReturnsReplicaCountWithoutBlocking() {
+        replicas.register(new java.io.ByteArrayOutputStream());
+        replicas.register(new java.io.ByteArrayOutputStream());
+
+        // no write has been dispatched, so replication offset is 0 and every
+        // replica is trivially caught up — returns immediately even though
+        // 5 > 2 replicas are requested with a 10s timeout.
+        assertEquals(":2\r\n", send("WAIT", "5", "10000"));
+    }
+
+    @Test
     void infoRoutesToServerCommandAndRepliesWithABulkString() {
         String reply = send("INFO", "replication");
         assertTrue(reply.startsWith("$"), reply);

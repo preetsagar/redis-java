@@ -30,4 +30,8 @@ public class ReplicationInfo {
     public long replOffset() {
         return replOffset;
     }
+
+    public void addReplOffset(long replOffset) {
+        this.replOffset += replOffset;
+    }
 }

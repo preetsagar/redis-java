@@ -7,20 +7,28 @@ import io.codecrafters.redis.replication.Replicas;
 
 public class ServerCommands extends CommandGroup {
 
-    public ServerCommands(ReplicationInfo replication, Replicas replicas) {
+    public ServerCommands(ReplicationInfo replicationInfo, Replicas replicas) {
         add("INFO", args -> RespEncoder.multiBulkString(
-                "role:" + replication.role(),
+                "role:" + replicationInfo.role(),
                 "connected_slaves:" + replicas.count(),
-                "master_replid:" + replication.replId(),
-                "master_repl_offset:" + replication.replOffset()));
+                "master_replid:" + replicationInfo.replId(),
+                "master_repl_offset:" + replicationInfo.replOffset()));
 
         add("REPLCONF", args -> RespEncoder.simpleString("OK"));
 
         // +FULLRESYNC <replid> 0\r\n  immediately followed by  $<len>\r\n<rdb bytes>
         add("PSYNC", args -> RespEncoder.concat(
-                RespEncoder.simpleString("FULLRESYNC " + replication.replId() + " 0"),
+                RespEncoder.simpleString("FULLRESYNC " + replicationInfo.replId() + " 0"),
                 RespEncoder.rdbFile(Rdb.EMPTY)));
 
-        add("WAIT", args -> RespEncoder.respInteger(replicas.count()));
+        add("WAIT", args -> {
+            int wanted = Integer.parseInt(args.get(1));
+            long timeoutMillis = Long.parseLong(args.get(2));
+            long target = replicationInfo.replOffset();
+            int acked = target == 0
+                    ? replicas.count()            // nothing written yet — every replica is trivially caught up
+                    : replicas.waitForAcks(target, wanted, timeoutMillis);
+            return RespEncoder.respInteger(acked);
+        });
     }
 }
