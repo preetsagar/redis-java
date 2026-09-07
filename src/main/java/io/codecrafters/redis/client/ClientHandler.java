@@ -13,7 +13,8 @@ import java.util.List;
 /**
  * Owns one client socket: reads RESP commands, hands each to the shared
  * {@link CommandDispatcher} along with this connection's {@link ClientSession},
- * and writes the reply back.
+ * and writes the reply back. If the client issues {@code PSYNC}, this connection
+ * becomes a replication link and is registered for command propagation.
  */
 public class ClientHandler implements Runnable {
 
@@ -29,23 +30,23 @@ public class ClientHandler implements Runnable {
 
     @Override
     public void run() {
-//        String clientInfo = client.getInetAddress().getHostAddress() + ":" + client.getPort();
-//        System.out.println("[CONNECTED  " + clientInfo + "]");
         try (client;
              BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
              OutputStream out = client.getOutputStream()) {
             RespParser parser = new RespParser(in);
             List<String> args;
             while ((args = parser.readCommand()) != null) {
-//                System.out.println("[REQUEST  " + clientInfo + "] → " + args);
+                if (args.get(0).equalsIgnoreCase("PSYNC")) {
+                    dispatcher.replicas().register(out);
+                }
                 byte[] response = dispatcher.dispatch(args, session);
-//                System.out.println("[RESPONSE " + clientInfo + "] ← " + new String(response).replace("\r\n", "\\r\\n"));
-                out.write(response);
+                synchronized (out) {
+                    out.write(response);
+                    out.flush();
+                }
             }
         } catch (IOException e) {
-//            System.out.println("[ERROR]    " + clientInfo + " — " + e.getMessage());
-            System.out.println("[ERROR]  "  + e.getMessage());
+            System.out.println("[ERROR]  " + e.getMessage());
         }
-//        System.out.println("[DISCONNECTED] " + clientInfo);
     }
 }

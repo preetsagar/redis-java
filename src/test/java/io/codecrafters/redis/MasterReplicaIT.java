@@ -46,6 +46,61 @@ class MasterReplicaIT {
                 "replica should report role:slave (survived the handshake with its own state)");
     }
 
+    @Test
+    void replicaAppliesWritesPropagatedByMaster() throws Exception {
+        int masterPort = freePort();
+        int replicaPort = freePort();
+
+        start(masterPort, "master");
+        awaitListening(masterPort);
+
+        Main.getParsed().put("MASTER_HOST", "localhost");
+        Main.getParsed().put("MASTER_PORT", String.valueOf(masterPort));
+        start(replicaPort, "slave");
+        awaitListening(replicaPort);
+
+        awaitConnectedSlaves(masterPort); // replica must be registered before we write
+
+        try (Socket writer = new Socket("localhost", masterPort)) {
+            writer.setSoTimeout(2000);
+            writer.getOutputStream().write(resp("SET", "foo", "123"));
+            assertEquals("+OK\r\n", new String(writer.getInputStream().readNBytes(5)));
+            writer.getOutputStream().write(resp("SET", "counter", "9"));
+            assertEquals("+OK\r\n", new String(writer.getInputStream().readNBytes(5)));
+        }
+
+        assertEquals("$3\r\n123\r\n", awaitGet(replicaPort, "foo"));
+        assertEquals("$1\r\n9\r\n", awaitGet(replicaPort, "counter"));
+    }
+
+    private static void awaitConnectedSlaves(int masterPort) throws Exception {
+        for (int attempt = 0; attempt < 100; attempt++) {
+            if (infoReplication(masterPort).contains("connected_slaves:1")) {
+                return;
+            }
+            Thread.sleep(20);
+        }
+        fail("master never registered the replica");
+    }
+
+    // Polls GET on the replica until it returns a non-null value (replication is async).
+    private static String awaitGet(int replicaPort, String key) throws Exception {
+        String reply = "$-1\r\n";
+        for (int attempt = 0; attempt < 100; attempt++) {
+            try (Socket client = new Socket("localhost", replicaPort)) {
+                client.setSoTimeout(2000);
+                client.getOutputStream().write(resp("GET", key));
+                byte[] buffer = new byte[256];
+                reply = new String(buffer, 0, client.getInputStream().read(buffer));
+            }
+            if (!reply.equals("$-1\r\n")) {
+                return reply;
+            }
+            Thread.sleep(20);
+        }
+        return reply;
+    }
+
     private void start(int port, String role) {
         RedisServer server = new RedisServer(port, role);
         servers.add(server);

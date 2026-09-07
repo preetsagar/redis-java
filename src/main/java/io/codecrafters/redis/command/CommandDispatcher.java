@@ -3,10 +3,12 @@ package io.codecrafters.redis.command;
 import io.codecrafters.redis.ReplicationInfo;
 import io.codecrafters.redis.client.ClientSession;
 import io.codecrafters.redis.protocol.RespEncoder;
+import io.codecrafters.redis.replication.Replicas;
 import io.codecrafters.redis.store.Database;
 
 import java.io.ByteArrayOutputStream;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Routes a parsed command for one connection: handles the transaction control
@@ -15,17 +17,27 @@ import java.util.List;
  */
 public class CommandDispatcher {
 
+    // Commands that mutate the dataset and must be propagated to replicas.
+    private static final Set<String> WRITE_COMMANDS =
+            Set.of("SET", "DEL", "INCR", "LPUSH", "RPUSH", "LPOP", "XADD");
+
     private final Database db;
     private final CommandRegistry registry;
+    private final Replicas replicas;
 
-    public CommandDispatcher(Database db, ReplicationInfo replication) {
+    public CommandDispatcher(Database db, ReplicationInfo replication, Replicas replicas) {
         this.db = db;
-        this.registry = new CommandRegistry(db, replication);
+        this.replicas = replicas;
+        this.registry = new CommandRegistry(db, replication, replicas);
     }
 
     /** A fresh session for a newly connected client. */
     public ClientSession newSession() {
         return new ClientSession(db.stringStore());
+    }
+
+    public Replicas replicas() {
+        return replicas;
     }
 
     public byte[] dispatch(List<String> args, ClientSession session) {
@@ -50,9 +62,14 @@ public class CommandDispatcher {
             }
             default -> {
                 Command command = registry.get(commandName);
-                yield command != null
-                        ? command.execute(args)
-                        : RespEncoder.error("unknown command '" + args.get(0) + "'");
+                if (command == null) {
+                    yield RespEncoder.error("unknown command '" + args.get(0) + "'");
+                }
+                byte[] reply = command.execute(args);
+                if (WRITE_COMMANDS.contains(commandName)) {
+                    replicas.propagate(RespEncoder.encodeList(args));
+                }
+                yield reply;
             }
         };
     }

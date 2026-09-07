@@ -3,12 +3,14 @@ package io.codecrafters.redis.command;
 import io.codecrafters.redis.ReplicationInfo;
 import io.codecrafters.redis.protocol.RespEncoder;
 import io.codecrafters.redis.rdb.Rdb;
+import io.codecrafters.redis.replication.Replicas;
 
 public class ServerCommands extends CommandGroup {
 
-    public ServerCommands(ReplicationInfo replication) {
+    public ServerCommands(ReplicationInfo replication, Replicas replicas) {
         add("INFO", args -> RespEncoder.multiBulkString(
                 "role:" + replication.role(),
+                "connected_slaves:" + replicas.count(),
                 "master_replid:" + replication.replId(),
                 "master_repl_offset:" + replication.replOffset()));
 

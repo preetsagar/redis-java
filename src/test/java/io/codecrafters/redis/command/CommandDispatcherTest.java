@@ -2,6 +2,7 @@ package io.codecrafters.redis.command;
 
 import io.codecrafters.redis.ReplicationInfo;
 import io.codecrafters.redis.client.ClientSession;
+import io.codecrafters.redis.replication.Replicas;
 import io.codecrafters.redis.store.Database;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,10 +22,12 @@ class CommandDispatcherTest {
 
     private CommandDispatcher dispatcher;
     private ClientSession session;
+    private Replicas replicas;
 
     @BeforeEach
     void setUp() {
-        dispatcher = new CommandDispatcher(new Database(), new ReplicationInfo("master"));
+        replicas = new Replicas();
+        dispatcher = new CommandDispatcher(new Database(), new ReplicationInfo("master"), replicas);
         session = dispatcher.newSession();
     }
 
@@ -57,6 +60,22 @@ class CommandDispatcherTest {
     void dataCommandRunsAgainstTheStore() {
         assertEquals("+OK\r\n", send("SET", "k", "v"));
         assertEquals("$1\r\nv\r\n", send("GET", "k"));
+    }
+
+    @Test
+    void writeCommandsPropagateToReplicasVerbatimAndOthersDoNot() {
+        java.io.ByteArrayOutputStream link = new java.io.ByteArrayOutputStream();
+        replicas.register(link);
+
+        send("SET", "foo", "bar");
+        send("PING");              // not a write — nothing propagated
+        send("GET", "foo");        // not a write
+        send("SET", "baz", "1");
+
+        assertEquals(
+                "*3\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"
+              + "*3\r\n$3\r\nSET\r\n$3\r\nbaz\r\n$1\r\n1\r\n",
+                link.toString(StandardCharsets.ISO_8859_1));
     }
 
     @Test
