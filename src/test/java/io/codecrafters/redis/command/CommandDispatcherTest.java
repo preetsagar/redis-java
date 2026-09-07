@@ -57,6 +57,13 @@ class CommandDispatcherTest {
         assertEquals("$1\r\nv\r\n", send("GET", "k"));
     }
 
+    @Test
+    void infoRoutesToServerCommandAndRepliesWithABulkString() {
+        String reply = send("INFO", "replication");
+        assertTrue(reply.startsWith("$"), reply);
+        assertTrue(reply.contains("master_repl_offset:"), reply);
+    }
+
     // --- MULTI / EXEC / DISCARD ---
 
     @Test

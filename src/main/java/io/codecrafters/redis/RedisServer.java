@@ -2,10 +2,16 @@ package io.codecrafters.redis;
 
 import io.codecrafters.redis.client.ClientHandler;
 import io.codecrafters.redis.command.CommandDispatcher;
+import io.codecrafters.redis.protocol.RespEncoder;
 import io.codecrafters.redis.store.Database;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.List;
+
+import static io.codecrafters.redis.Main.getParsed;
 
 public class RedisServer {
 
@@ -39,6 +45,16 @@ public class RedisServer {
     public void start() {
         Database db = new Database();
         CommandDispatcher dispatcher = new CommandDispatcher(db);
+        if(role.equals("slave")) {
+            try {
+                Socket socket = new Socket(getParsed().get("MASTER_HOST"), Integer.parseInt(Main.getParsed().get("MASTER_PORT")));
+                OutputStream out = socket.getOutputStream();
+                out.write(RespEncoder.encodeList(List.of("PING")));
+            } catch (IOException e) {
+                // throw new RuntimeException(e);
+                System.out.println("[Error] : Failed while connecting to master "  + e.getMessage());
+            }
+        }
         try {
             serverSocket = new ServerSocket(port);
             serverSocket.setReuseAddress(true);
