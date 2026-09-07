@@ -12,8 +12,15 @@ public class RedisServer {
     private final int port;
     private ServerSocket serverSocket;
 
-    public RedisServer(int port) {
+    public static String getRole() {
+        return role;
+    }
+
+    private static String role;
+
+    public RedisServer(int port, String role) {
         this.port = port;
+        this.role = role;
     }
 
     public void start() {

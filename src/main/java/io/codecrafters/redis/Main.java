@@ -1,20 +1,25 @@
 package io.codecrafters.redis;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class Main {
 
-    private static final int DEFAULT_PORT = 6379;
+    private static final String DEFAULT_PORT = "6379";
+    private static final String DEFAULT_ROLE = "master";
+    private static Map<String, String> parsed = new HashMap<>();
 
     public static void main(String[] args) {
-        new RedisServer(parsePort(args)).start();
+        parse(args);
+        new RedisServer(
+                Integer.parseInt(parsed.getOrDefault("port", DEFAULT_PORT)),
+                parsed.containsKey("replicaof") ? "slave" : "master"
+        ).start();
     }
 
-    // Supports: --port <n>  (defaults to 6379)
-    private static int parsePort(String[] args) {
+    private static void parse(String[] args) {
         for (int i = 0; i + 1 < args.length; i++) {
-            if (args[i].equals("--port")) {
-                return Integer.parseInt(args[i + 1]);
-            }
+            parsed.put(args[i].substring(2).toLowerCase(), args[++i]);
         }
-        return DEFAULT_PORT;
     }
 }

@@ -21,7 +21,7 @@ abstract class RedisServerTestBase {
 
     @BeforeEach
     void startServer() throws Exception {
-        server = new RedisServer(PORT);
+        server = new RedisServer(PORT, "master");
         serverThread = new Thread(server::start);
         serverThread.setDaemon(true);
         serverThread.start();
