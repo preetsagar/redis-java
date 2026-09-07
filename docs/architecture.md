@@ -28,21 +28,30 @@ needs no locking.
 
 ## Request flow (normal command)
 
-```
-Client bytes
-  -> ClientHandler.run()            loop: read one command
-  -> RespParser.readCommand()       ["SET","foo","bar"]
-  -> CommandDispatcher.dispatch(args, session)
-       name = "SET"
-       inMulti? no  -> not queued
-       registry.get("SET").execute(args)
-         -> StringCommands lambda -> Store.set(...)  (also bumps keyVersions)
-         -> RespEncoder.simpleString("OK")
-  <- "+OK\r\n"
-  -> out.write(response)
-```
+```mermaid
+sequenceDiagram
+    actor Client
+    participant CH as ClientHandler
+    participant RP as RespParser
+    participant CD as CommandDispatcher
+    participant CR as CommandRegistry
+    participant SC as StringCommands
+    participant St as Store
 
-See `flow-simple.puml`.
+    Client->>CH: RESP frame for SET foo bar
+    CH->>RP: readCommand()
+    RP-->>CH: list [SET, foo, bar]
+    CH->>CD: dispatch(args, session)
+    Note over CD: name = SET<br/>session.inMulti() is false, so not queued
+    CD->>CR: get(SET)
+    CR-->>CD: Command
+    CD->>SC: execute([SET, foo, bar])
+    SC->>St: set(foo, bar)
+    Note over St: data.put(...)<br/>touch(foo) bumps keyVersions
+    SC-->>CD: +OK
+    CD-->>CH: +OK
+    CH->>Client: +OK
+```
 
 ## Transaction flow (MULTI / EXEC / WATCH)
 
@@ -63,7 +72,46 @@ The dispatcher special-cases five verbs *before* touching the registry:
 While `inMulti` is true, any command that is *not* EXEC / DISCARD / WATCH is
 appended to the queue and answered with `+QUEUED`.
 
-See `flow-transaction.puml`.
+```mermaid
+sequenceDiagram
+    actor A as Client A
+    actor B as Client B
+    participant CD as Dispatcher
+    participant SA as Session A
+    participant St as Store
+
+    Note over A,St: WATCH
+    A->>CD: WATCH foo
+    CD->>SA: watch(foo)
+    SA->>St: versionOf(foo) returns 7
+    SA->>SA: watchedVersions = {foo=7}
+    CD-->>A: +OK
+
+    Note over A,St: MULTI and queue
+    A->>CD: MULTI
+    CD->>SA: beginMulti()
+    CD-->>A: +OK
+    A->>CD: INCR foo
+    CD->>SA: queue([INCR, foo])
+    CD-->>A: +QUEUED
+
+    Note over B,St: another client mutates the watched key
+    B->>CD: SET foo 99
+    CD->>St: set(foo, 99)
+    Note over St: touch(foo) makes keyVersions[foo] = 8
+
+    Note over A,St: EXEC, optimistic-lock check
+    A->>CD: EXEC
+    CD->>SA: endMulti()
+    CD->>SA: isAnyWatchedKeyDirty?
+    SA->>St: versionOf(foo) returns 8
+    SA->>SA: 8 != snapshot 7, so DIRTY
+    SA-->>CD: true
+    CD->>SA: clearQueue and clearWatches
+    CD-->>A: nil array (transaction aborted)
+
+    Note over CD,St: if not dirty: drainQueue, then dispatch each<br/>queued command, concatenating the replies
+```
 
 ## Why WATCH works across threads without callbacks
 
@@ -86,16 +134,22 @@ longs — no `volatile` flag, and `Store` never holds a reference back to a
 1. Pick the group (`StringCommands`, `ListCommands`, …) or add a new
    `CommandGroup` subclass.
 2. `add("NAME", args -> { ... return RespEncoder.xxx(...); });`
-3. If it's a new group, `install(new XxxCommands(...))` in `CommandRegistry`.
+3. If it's a new group, `register(new XxxCommands(...))` in `CommandRegistry`.
 
 Connection-scoped commands (SUBSCRIBE, transaction verbs, replication
 handshake) instead go in `CommandDispatcher`, where the `ClientSession` is in
 scope.
 
-## Rendering the diagrams
+## Diagrams
+
+The two sequence diagrams above are Mermaid — they render inline on GitHub and in
+most Markdown viewers, no tooling needed.
+
+The class diagram is PlantUML in [`classes.puml`](classes.puml) (Graphviz-free —
+it uses `!pragma layout smetana`). Render it with:
 
 ```
-plantuml docs/*.puml           # produces docs/classes.png, etc.
+plantuml docs/classes.puml      # produces docs/classes.png
 ```
 
-or paste any `.puml` into <https://www.plantuml.com/plantuml>.
+or paste it into <https://www.plantuml.com/plantuml>.
