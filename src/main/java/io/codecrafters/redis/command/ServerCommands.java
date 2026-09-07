@@ -20,5 +20,7 @@ public class ServerCommands extends CommandGroup {
         add("PSYNC", args -> RespEncoder.concat(
                 RespEncoder.simpleString("FULLRESYNC " + replication.replId() + " 0"),
                 RespEncoder.rdbFile(Rdb.EMPTY)));
+
+        add("WAIT", args -> RespEncoder.respInteger(0));
     }
 }
