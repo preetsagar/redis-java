@@ -20,6 +20,7 @@ public class CommandRegistry {
         register(new ListCommands(db.listStore()));
         register(new StreamCommands(db.streamStore()));
         register(new KeyCommands(db));
+        register(new ServerCommands());
     }
 
     private void register(CommandGroup group) {
