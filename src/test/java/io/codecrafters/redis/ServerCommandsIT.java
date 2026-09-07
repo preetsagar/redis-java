@@ -2,7 +2,9 @@ package io.codecrafters.redis;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.InputStream;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -54,5 +56,40 @@ class ServerCommandsIT extends RedisServerTestBase {
             assertNotNull(replid, "response should carry master_replid: " + response);
             assertTrue(replid.matches("[0-9a-f]{40}"), "replid should be 40 hex chars, got: " + replid);
         }
+    }
+
+    @Test
+    void psyncSendsFullResyncLineThenEmptyRdbFile() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.setSoTimeout(2000);
+            client.getOutputStream().write(resp("PSYNC", "?", "-1").getBytes());
+
+            InputStream in = client.getInputStream();
+
+            String line = readLine(in);
+            assertTrue(line.matches("\\+FULLRESYNC [0-9a-f]{40} 0"), "got: " + line);
+
+            assertEquals('$', in.read());
+            int rdbLen = Integer.parseInt(readLine(in));
+            byte[] rdb = in.readNBytes(rdbLen);
+
+            assertEquals(rdbLen, rdb.length, "should receive exactly <len> RDB bytes");
+            assertEquals("REDIS", new String(rdb, 0, 5, StandardCharsets.ISO_8859_1),
+                    "RDB payload should start with the REDIS magic");
+        }
+    }
+
+    // Reads bytes up to and consuming a trailing CRLF; returns the line without it.
+    private static String readLine(InputStream in) throws Exception {
+        StringBuilder sb = new StringBuilder();
+        int c;
+        while ((c = in.read()) != -1) {
+            if (c == '\r') {
+                in.read(); // consume '\n'
+                break;
+            }
+            sb.append((char) c);
+        }
+        return sb.toString();
     }
 }

@@ -6,6 +6,7 @@ import io.codecrafters.redis.store.Database;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -78,20 +79,26 @@ class CommandDispatcherTest {
     }
 
     @Test
-    void psyncRepliesWithFullResync() {
-        String reply = send("PSYNC", "?", "-1");
-        assertTrue(reply.startsWith("+FULLRESYNC "), reply);
-        assertTrue(reply.endsWith(" 0\r\n"), reply);
-        // exactly one leading '+' — guards against simpleString("+FULLRESYNC ...")
-        assertFalse(reply.startsWith("++"), reply);
-    }
+    void psyncRepliesWithFullResyncLineThenEmptyRdbFrame() {
+        byte[] reply = dispatcher.dispatch(List.of("PSYNC", "?", "-1"), session);
+        String text = new String(reply, StandardCharsets.ISO_8859_1);
 
-    @Test
-    void psyncReplidIsFortyHexChars() {
-        String reply = send("PSYNC", "?", "-1");
-        // "+FULLRESYNC <replid> 0\r\n"
-        String replid = reply.substring("+FULLRESYNC ".length(), reply.indexOf(" 0\r\n"));
-        assertTrue(replid.matches("[0-9a-f]{40}"), "replid should be 40 hex chars, got: " + replid);
+        // line 1: +FULLRESYNC <40 hex> 0\r\n   (exactly one leading '+')
+        int firstCrlf = text.indexOf("\r\n");
+        String fullresync = text.substring(0, firstCrlf);
+        assertTrue(fullresync.matches("\\+FULLRESYNC [0-9a-f]{40} 0"), fullresync);
+
+        // then: $<len>\r\n<len bytes>, NO trailing CRLF
+        int headerStart = firstCrlf + 2;
+        assertEquals('$', text.charAt(headerStart));
+        int secondCrlf = text.indexOf("\r\n", headerStart);
+        int declaredLen = Integer.parseInt(text.substring(headerStart + 1, secondCrlf));
+
+        int rdbStart = secondCrlf + 2;
+        assertEquals(declaredLen, reply.length - rdbStart, "RDB byte count must match $<len>");
+        assertFalse(text.endsWith("\r\n"), "RDB frame must not end with CRLF");
+        assertEquals("REDIS", new String(reply, rdbStart, 5, StandardCharsets.ISO_8859_1),
+                "RDB payload should start with the REDIS magic");
     }
 
     // --- MULTI / EXEC / DISCARD ---

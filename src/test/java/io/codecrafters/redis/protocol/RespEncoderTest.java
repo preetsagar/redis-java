@@ -63,4 +63,20 @@ class RespEncoderTest {
     void error() {
         assertEquals("-ERR unknown command 'FOO'\r\n", new String(RespEncoder.error("unknown command 'FOO'")));
     }
+
+    @Test
+    void concatJoinsByteArraysInOrder() {
+        assertArrayEquals("abcde".getBytes(),
+                RespEncoder.concat("ab".getBytes(), new byte[0], "cde".getBytes()));
+    }
+
+    @Test
+    void rdbFileFramesBytesWithLengthAndNoTrailingCrlf() {
+        byte[] out = RespEncoder.rdbFile(new byte[]{1, 2, 3});
+
+        assertEquals(7, out.length, "'$3\\r\\n' (4) + 3 payload bytes");
+        assertEquals("$3\r\n", new String(out, 0, 4));
+        assertArrayEquals(new byte[]{1, 2, 3}, java.util.Arrays.copyOfRange(out, 4, 7));
+        assertNotEquals('\n', out[out.length - 1], "no trailing CRLF");
+    }
 }

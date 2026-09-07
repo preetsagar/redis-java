@@ -2,6 +2,7 @@ package io.codecrafters.redis.command;
 
 import io.codecrafters.redis.ReplicationInfo;
 import io.codecrafters.redis.protocol.RespEncoder;
+import io.codecrafters.redis.rdb.Rdb;
 
 public class ServerCommands extends CommandGroup {
 
@@ -13,7 +14,9 @@ public class ServerCommands extends CommandGroup {
 
         add("REPLCONF", args -> RespEncoder.simpleString("OK"));
 
-        add("PSYNC", args ->
-                RespEncoder.simpleString("FULLRESYNC " + replication.replId() + " 0"));
+        // +FULLRESYNC <replid> 0\r\n  immediately followed by  $<len>\r\n<rdb bytes>
+        add("PSYNC", args -> RespEncoder.concat(
+                RespEncoder.simpleString("FULLRESYNC " + replication.replId() + " 0"),
+                RespEncoder.rdbFile(Rdb.EMPTY)));
     }
 }

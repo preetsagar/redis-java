@@ -23,6 +23,29 @@ public class RespEncoder {
         return "$-1\r\n".getBytes();
     }
 
+    /**
+     * RDB transfer frame sent by a master right after {@code +FULLRESYNC}:
+     * {@code $<length>\r\n<raw bytes>}. Unlike a bulk string, there is no
+     * trailing CRLF.
+     */
+    public static byte[] rdbFile(byte[] contents) {
+        return concat(("$" + contents.length + "\r\n").getBytes(), contents);
+    }
+
+    public static byte[] concat(byte[]... parts) {
+        int total = 0;
+        for (byte[] part : parts) {
+            total += part.length;
+        }
+        byte[] out = new byte[total];
+        int pos = 0;
+        for (byte[] part : parts) {
+            System.arraycopy(part, 0, out, pos, part.length);
+            pos += part.length;
+        }
+        return out;
+    }
+
     public static byte[] encodeList(List<String> arr) {
         StringBuilder sb = new StringBuilder();
         sb.append("*").append(arr.size()).append("\r\n");
