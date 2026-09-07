@@ -50,7 +50,7 @@ public class ReplicationClient {
 
             handshake(in, out);
             consumeRdb(in);
-            applyPropagatedCommands(in);
+            applyPropagatedCommands(in, out);
         } catch (Exception e) {
             System.out.println("[replication] link to master ended: " + e.getMessage());
         }
@@ -75,10 +75,14 @@ public class ReplicationClient {
         }
     }
 
-    private void applyPropagatedCommands(InputStream in) throws IOException {
+    private void applyPropagatedCommands(InputStream in, OutputStream out) throws IOException {
         ClientSession session = dispatcher.newSession();
         List<String> args;
         while ((args = readCommand(in)) != null) {
+            if(args.get(0).equals("REPLCONF")) {
+                send(out, "REPLCONF", "ACK", "0");
+                continue;
+            }
             dispatcher.dispatch(args, session); // apply to the local dataset; reply is discarded
         }
     }
