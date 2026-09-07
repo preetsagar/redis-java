@@ -21,6 +21,6 @@ public class ServerCommands extends CommandGroup {
                 RespEncoder.simpleString("FULLRESYNC " + replication.replId() + " 0"),
                 RespEncoder.rdbFile(Rdb.EMPTY)));
 
-        add("WAIT", args -> RespEncoder.respInteger(0));
+        add("WAIT", args -> RespEncoder.respInteger(replicas.count()));
     }
 }
