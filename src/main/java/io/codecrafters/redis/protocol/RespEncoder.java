@@ -1,6 +1,8 @@
 package io.codecrafters.redis.protocol;
 
 import io.codecrafters.redis.store.StreamStore;
+
+import java.util.ArrayList;
 import java.util.List;
 
 public class RespEncoder {
@@ -11,6 +13,10 @@ public class RespEncoder {
 
     public static byte[] bulkString(String str) {
         return ("$" + str.length() + "\r\n" + str + "\r\n").getBytes();
+    }
+
+    public static byte[] multiBulkString(String... lines) {
+        return bulkString(String.join("\r\n", lines));
     }
 
     public static byte[] nullBulkString() {

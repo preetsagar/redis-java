@@ -11,16 +11,29 @@ public class RedisServer {
 
     private final int port;
     private ServerSocket serverSocket;
+    private static String role;
+    private static String master_replid;
+
+    public static Long getMaster_repl_offset() {
+        return master_repl_offset;
+    }
+
+    public static String getMaster_replid() {
+        return master_replid;
+    }
+
+    private static Long master_repl_offset;
 
     public static String getRole() {
         return role;
     }
 
-    private static String role;
 
     public RedisServer(int port, String role) {
         this.port = port;
-        this.role = role;
+        RedisServer.role = role;
+        master_replid = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
+        master_repl_offset = 0l;
     }
 
     public void start() {
