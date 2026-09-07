@@ -2,6 +2,7 @@ package io.codecrafters.redis.command;
 
 import io.codecrafters.redis.ReplicationInfo;
 import io.codecrafters.redis.client.ClientSession;
+import io.codecrafters.redis.rdb.Rdb;
 import io.codecrafters.redis.replication.Replicas;
 import io.codecrafters.redis.store.Database;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,7 +28,7 @@ class CommandDispatcherTest {
     @BeforeEach
     void setUp() {
         replicas = new Replicas();
-        dispatcher = new CommandDispatcher(new Database(), new ReplicationInfo("master"), replicas);
+        dispatcher = new CommandDispatcher(new Database(), new ReplicationInfo("master"), replicas, new Rdb());
         session = dispatcher.newSession();
     }
 

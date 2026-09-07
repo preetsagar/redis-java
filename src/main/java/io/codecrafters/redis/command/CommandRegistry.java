@@ -1,6 +1,7 @@
 package io.codecrafters.redis.command;
 
 import io.codecrafters.redis.ReplicationInfo;
+import io.codecrafters.redis.rdb.Rdb;
 import io.codecrafters.redis.replication.Replicas;
 import io.codecrafters.redis.store.Database;
 
@@ -16,13 +17,14 @@ public class CommandRegistry {
 
     private final Map<String, Command> commands = new HashMap<>();
 
-    public CommandRegistry(Database db, ReplicationInfo replication, Replicas replicas) {
+    public CommandRegistry(Database db, ReplicationInfo replication, Replicas replicas, Rdb redisDataBase) {
         register(new ConnectionCommands());
         register(new StringCommands(db.stringStore()));
         register(new ListCommands(db.listStore()));
         register(new StreamCommands(db.streamStore()));
         register(new KeyCommands(db));
         register(new ServerCommands(replication, replicas));
+        register(new RDBPersistenceCommands(redisDataBase));
     }
 
     private void register(CommandGroup group) {

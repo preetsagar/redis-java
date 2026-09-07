@@ -3,6 +3,7 @@ package io.codecrafters.redis.command;
 import io.codecrafters.redis.ReplicationInfo;
 import io.codecrafters.redis.client.ClientSession;
 import io.codecrafters.redis.protocol.RespEncoder;
+import io.codecrafters.redis.rdb.Rdb;
 import io.codecrafters.redis.replication.Replicas;
 import io.codecrafters.redis.store.Database;
 
@@ -25,12 +26,14 @@ public class CommandDispatcher {
     private final CommandRegistry registry;
     private final Replicas replicas;
     private final ReplicationInfo replication;
+    private final Rdb redisDataBase;
 
-    public CommandDispatcher(Database db, ReplicationInfo replication, Replicas replicas) {
+    public CommandDispatcher(Database db, ReplicationInfo replication, Replicas replicas, Rdb redisDataBase) {
         this.db = db;
         this.replicas = replicas;
         this.replication = replication;
-        this.registry = new CommandRegistry(db, replication, replicas);
+        this.redisDataBase = redisDataBase;
+        this.registry = new CommandRegistry(db, replication, replicas, redisDataBase);
     }
 
     /** A fresh session for a newly connected client. */

@@ -8,6 +8,13 @@ import java.util.HexFormat;
  * real RDB files is a separate challenge extension.
  */
 public final class Rdb {
+    private String dbFileName;
+    private String dir;
+
+    public Rdb(String dbFileName, String dir) {
+        this.dbFileName = dbFileName != null ? dbFileName : "dump.rdb";
+        this.dir        = dir        != null ? dir        : "/Users/preetsagar/Desktop/prep/reddis/codecrafters-redis-java";
+    }
 
     // "REDIS0011" magic, redis-ver / redis-bits aux fields, EOF opcode, CRC64.
     private static final String EMPTY_RDB_HEX =
@@ -19,6 +26,16 @@ public final class Rdb {
 
     public static final byte[] EMPTY = HexFormat.of().parseHex(EMPTY_RDB_HEX);
 
-    private Rdb() {
+    public Rdb() {
+        this.dbFileName = "dump.rdb";
+        this.dir = "Users/preetsagar/Desktop/prep/reddis/codecrafters-redis-java";
+    }
+
+    public String getDbFileName() {
+        return dbFileName;
+    }
+
+    public String getDir() {
+        return dir;
     }
 }

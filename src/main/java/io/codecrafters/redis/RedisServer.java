@@ -2,6 +2,7 @@ package io.codecrafters.redis;
 
 import io.codecrafters.redis.client.ClientHandler;
 import io.codecrafters.redis.command.CommandDispatcher;
+import io.codecrafters.redis.rdb.Rdb;
 import io.codecrafters.redis.replication.ReplicationClient;
 import io.codecrafters.redis.replication.Replicas;
 import io.codecrafters.redis.store.Database;
@@ -24,7 +25,8 @@ public class RedisServer {
 
     public void start() {
         Database db = new Database();
-        CommandDispatcher dispatcher = new CommandDispatcher(db, replication, new Replicas());
+        Rdb reddisDataBase = new Rdb(getParsed().get("dbfilename"), getParsed().get("dir"));
+        CommandDispatcher dispatcher = new CommandDispatcher(db, replication, new Replicas(), reddisDataBase);
 
         if (replication.role().equals("slave")) {
             new ReplicationClient(
