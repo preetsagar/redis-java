@@ -3,18 +3,17 @@ package io.codecrafters.redis.rdb;
 import java.util.HexFormat;
 
 /**
- * Minimal RDB support. For now just a canned empty RDB, sent by a master after
- * {@code +FULLRESYNC} so a replica can complete a full resync. Reading/writing
- * real RDB files is a separate challenge extension.
+ * RDB config + the canned empty snapshot.
+ *
+ * <ul>
+ *   <li>{@link #EMPTY} — a minimal valid RDB payload a master sends after
+ *       {@code +FULLRESYNC} so a replica can complete a full resync.</li>
+ *   <li>{@code dir} / {@code dbFileName} — where the on-disk RDB lives, from
+ *       {@code --dir} / {@code --dbfilename}; surfaced by {@code CONFIG GET} and
+ *       used to load keys at startup.</li>
+ * </ul>
  */
 public final class Rdb {
-    private String dbFileName;
-    private String dir;
-
-    public Rdb(String dbFileName, String dir) {
-        this.dbFileName = dbFileName != null ? dbFileName : "dump.rdb";
-        this.dir        = dir        != null ? dir        : "/Users/preetsagar/Desktop/prep/reddis/codecrafters-redis-java";
-    }
 
     // "REDIS0011" magic, redis-ver / redis-bits aux fields, EOF opcode, CRC64.
     private static final String EMPTY_RDB_HEX =
@@ -26,16 +25,23 @@ public final class Rdb {
 
     public static final byte[] EMPTY = HexFormat.of().parseHex(EMPTY_RDB_HEX);
 
+    private final String dir;
+    private final String dbFileName;
+
     public Rdb() {
-        this.dbFileName = "dump.rdb";
-        this.dir = "Users/preetsagar/Desktop/prep/reddis/codecrafters-redis-java";
+        this(null, null);
     }
 
-    public String getDbFileName() {
-        return dbFileName;
+    public Rdb(String dbFileName, String dir) {
+        this.dbFileName = dbFileName != null ? dbFileName : "dump.rdb";
+        this.dir = dir != null ? dir : ".";
     }
 
     public String getDir() {
         return dir;
+    }
+
+    public String getDbFileName() {
+        return dbFileName;
     }
 }

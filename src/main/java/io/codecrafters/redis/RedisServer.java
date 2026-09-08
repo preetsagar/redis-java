@@ -3,12 +3,14 @@ package io.codecrafters.redis;
 import io.codecrafters.redis.client.ClientHandler;
 import io.codecrafters.redis.command.CommandDispatcher;
 import io.codecrafters.redis.rdb.Rdb;
+import io.codecrafters.redis.rdb.RdbReader;
 import io.codecrafters.redis.replication.ReplicationClient;
 import io.codecrafters.redis.replication.Replicas;
 import io.codecrafters.redis.store.Database;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.nio.file.Path;
 
 import static io.codecrafters.redis.Main.getParsed;
 
@@ -26,6 +28,7 @@ public class RedisServer {
     public void start() {
         Database db = new Database();
         Rdb reddisDataBase = new Rdb(getParsed().get("dbfilename"), getParsed().get("dir"));
+        RdbReader.loadInto(Path.of(reddisDataBase.getDir(), reddisDataBase.getDbFileName()), db.stringStore());
         CommandDispatcher dispatcher = new CommandDispatcher(db, replication, new Replicas(), reddisDataBase);
 
         if (replication.role().equals("slave")) {

@@ -32,6 +32,32 @@ public class Store {
         touch(key);
     }
 
+    /**
+     * Inserts a key straight from an RDB load. {@code expiryAtEpochMillis} is an
+     * absolute timestamp (not a TTL), or null for no expiry; an already-elapsed
+     * timestamp is kept as-is and evicted lazily on the next {@link #get}.
+     */
+    public void load(String key, String value, Long expiryAtEpochMillis) {
+        data.put(key, value);
+        if (expiryAtEpochMillis != null) {
+            expiry.put(key, expiryAtEpochMillis);
+        } else {
+            expiry.remove(key);
+        }
+        touch(key);
+    }
+
+    /** Every key that currently exists and hasn't expired. */
+    public Set<String> keys() {
+        Set<String> live = new HashSet<>();
+        for (String key : new ArrayList<>(data.keySet())) {
+            if (get(key) != null) {
+                live.add(key);
+            }
+        }
+        return live;
+    }
+
     // Returns null if key doesn't exist or has expired.
     public String get(String key) {
         if (expiry.containsKey(key) && System.currentTimeMillis() >= expiry.get(key)) {

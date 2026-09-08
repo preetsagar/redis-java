@@ -1,3 +1,7 @@
 *.jar
 target/
 .idea/
+graphify-out/
+.claude/
+CLAUDE.md
+codecrafters-redis.iml
