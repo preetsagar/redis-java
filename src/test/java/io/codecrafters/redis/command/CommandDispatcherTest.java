@@ -122,6 +122,19 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void zrangeReturnsMembersInRankOrder() {
+        send("ZADD", "z", "100.0", "foo");
+        send("ZADD", "z", "100.0", "bar");
+        send("ZADD", "z", "20.0", "baz");
+        send("ZADD", "z", "30.1", "caz");
+        send("ZADD", "z", "40.2", "paz"); // rank order: baz caz paz bar foo
+
+        assertEquals("*3\r\n$3\r\npaz\r\n$3\r\nbar\r\n$3\r\nfoo\r\n", send("ZRANGE", "z", "2", "4"));
+        assertEquals("*0\r\n", send("ZRANGE", "z", "10", "20"));
+        assertEquals("*0\r\n", send("ZRANGE", "missing", "0", "5"));
+    }
+
+    @Test
     void writeCommandsPropagateToReplicasVerbatimAndOthersDoNot() {
         java.io.ByteArrayOutputStream link = new java.io.ByteArrayOutputStream();
         replicas.register(link);

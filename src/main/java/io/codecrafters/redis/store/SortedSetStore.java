@@ -9,8 +9,8 @@ import java.util.Map;
 /**
  * Sorted sets: {@code key -> (member -> score)}.
  *
- * <p>ponytail: plain HashMap per key — nothing reads members in score order yet.
- * Switch to a score-ordered structure when ZRANGE / ZRANK land.
+ * <p>ponytail: plain HashMap per key, sorted on every read. Fine at challenge
+ * scale; swap for a TreeSet keyed on (score, member) if read volume grows.
  */
 public class SortedSetStore {
 
@@ -33,9 +33,29 @@ public class SortedSetStore {
             if (set == null || !set.containsKey(member)) {
                 return null;
             }
-            List<String> ordered = new ArrayList<>(set.keySet());
-            ordered.sort(Comparator.<String>comparingDouble(set::get).thenComparing(s -> s));
-            return ordered.indexOf(member);
+            return orderedMembers(set).indexOf(member);
         }
+    }
+
+    /** Members from {@code start} to {@code stop} inclusive, in rank order; empty if out of range. */
+    public List<String> range(String key, int start, int stop) {
+        synchronized (lock) {
+            Map<String, Double> set = data.get(key);
+            if (set == null) {
+                return List.of();
+            }
+            List<String> ordered = orderedMembers(set);
+            start = Math.max(start, 0);
+            if (start > stop || start >= ordered.size()) {
+                return List.of();
+            }
+            return new ArrayList<>(ordered.subList(start, Math.min(stop, ordered.size() - 1) + 1));
+        }
+    }
+
+    private static List<String> orderedMembers(Map<String, Double> set) {
+        List<String> ordered = new ArrayList<>(set.keySet());
+        ordered.sort(Comparator.<String>comparingDouble(set::get).thenComparing(s -> s));
+        return ordered;
     }
 }

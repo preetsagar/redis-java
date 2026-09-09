@@ -3,6 +3,8 @@ package io.codecrafters.redis.store;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class SortedSetStoreTest {
@@ -47,5 +49,26 @@ class SortedSetStoreTest {
         store.add("z", 1.0, "a");
         assertNull(store.rank("z", "missing"));
         assertNull(store.rank("missing", "a"));
+    }
+
+    @Test
+    void rangeReturnsMembersInRankOrderInclusive() {
+        store.add("z", 8.1, "Sam-Bodden");
+        store.add("z", 10.2, "Royce");
+        store.add("z", 6.0, "Ford");
+        store.add("z", 14.1, "Prickett");
+
+        assertEquals(List.of("Ford", "Sam-Bodden", "Royce"), store.range("z", 0, 2));
+    }
+
+    @Test
+    void rangeClampsStopAndReturnsEmptyWhenOutOfRange() {
+        store.add("z", 1, "a");
+        store.add("z", 2, "b");
+
+        assertEquals(List.of("a", "b"), store.range("z", 0, 99)); // stop clamped to last
+        assertEquals(List.of(), store.range("z", 5, 9));          // start past the end
+        assertEquals(List.of(), store.range("z", 1, 0));          // start > stop
+        assertEquals(List.of(), store.range("missing", 0, 10));   // missing set
     }
 }

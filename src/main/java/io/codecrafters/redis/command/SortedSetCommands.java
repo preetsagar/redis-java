@@ -15,5 +15,9 @@ public class SortedSetCommands extends CommandGroup {
             Integer rank = store.rank(args.get(1), args.get(2));
             return rank != null ? RespEncoder.respInteger(rank) : RespEncoder.nullBulkString();
         });
+
+        // ZRANGE key start stop -> members in rank order (inclusive), empty array if out of range
+        add("ZRANGE", args -> RespEncoder.encodeList(
+                store.range(args.get(1), Integer.parseInt(args.get(2)), Integer.parseInt(args.get(3)))));
     }
 }
