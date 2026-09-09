@@ -342,8 +342,9 @@ class CommandDispatcherTest {
     }
 
     @Test
-    void aclGetuserReturnsFlagsWithNopass() {
-        assertEquals("*2\r\n$5\r\nflags\r\n*1\r\n$6\r\nnopass\r\n", send("ACL", "GETUSER", "default"));
+    void aclGetuserReturnsFlagsAndPasswords() {
+        assertEquals("*4\r\n$5\r\nflags\r\n*1\r\n$6\r\nnopass\r\n$9\r\npasswords\r\n*0\r\n",
+                send("ACL", "GETUSER", "default"));
     }
 
     @Test

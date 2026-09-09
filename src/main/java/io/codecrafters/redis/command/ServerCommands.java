@@ -19,8 +19,9 @@ public class ServerCommands extends CommandGroup {
         // ponytail: single hardcoded "default" user until auth lands
         add("ACL", args -> switch (args.get(1).toUpperCase()) {
             case "WHOAMI" -> RespEncoder.bulkString("default");
-            case "GETUSER" -> RespEncoder.array(RespEncoder.bulkString("flags"),
-                    RespEncoder.array(RespEncoder.bulkString("nopass")));
+            case "GETUSER" -> RespEncoder.array(
+                    RespEncoder.bulkString("flags"), RespEncoder.array(RespEncoder.bulkString("nopass")),
+                    RespEncoder.bulkString("passwords"), RespEncoder.emptyArray());
             default -> RespEncoder.error("unknown ACL subcommand '" + args.get(1) + "'");
         });
 
