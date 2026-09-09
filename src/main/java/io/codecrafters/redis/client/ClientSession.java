@@ -2,6 +2,8 @@ package io.codecrafters.redis.client;
 
 import io.codecrafters.redis.store.Store;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -18,14 +20,16 @@ import java.util.Set;
 public class ClientSession {
 
     private final Store store;
+    private final OutputStream connection; // null for socket-free tests
 
     private boolean inMulti = false;
     private final List<List<String>> commandQueue = new ArrayList<>();
     // Key -> version snapshotted at WATCH time. EXEC aborts if any current version differs.
     private final Map<String, Long> watchedVersions = new HashMap<>();
 
-    public ClientSession(Store store) {
+    public ClientSession(Store store, OutputStream connection) {
         this.store = store;
+        this.connection = connection;
     }
 
     public boolean inMulti() {
@@ -81,5 +85,20 @@ public class ClientSession {
     /** True once this client holds at least one subscription (restricted command set applies). */
     public boolean inSubscribedMode() {
         return !channels.isEmpty();
+    }
+
+    /** Pushes a message to this client's socket (used by PUBLISH from another thread). */
+    public void deliver(byte[] message) {
+        if (connection == null) {
+            return;
+        }
+        try {
+            synchronized (connection) {
+                connection.write(message);
+                connection.flush();
+            }
+        } catch (IOException gone) {
+            // subscriber disconnected — cleanup is a later stage
+        }
     }
 }

@@ -25,12 +25,10 @@ public class ClientHandler implements Runnable {
 
     private final Socket client;
     private final CommandDispatcher dispatcher;
-    private final ClientSession session;
 
     public ClientHandler(Socket client, CommandDispatcher dispatcher) {
         this.client = client;
         this.dispatcher = dispatcher;
-        this.session = dispatcher.newSession();
     }
 
     @Override
@@ -39,6 +37,7 @@ public class ClientHandler implements Runnable {
         try (client;
              BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
              OutputStream out = client.getOutputStream()) {
+            ClientSession session = dispatcher.newSession(out); // out is where PUBLISH delivers
             RespParser parser = new RespParser(in);
             List<String> args;
             while ((args = parser.readCommand()) != null) {

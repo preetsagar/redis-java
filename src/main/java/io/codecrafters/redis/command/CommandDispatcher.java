@@ -47,9 +47,14 @@ public class CommandDispatcher {
         this.registry = new CommandRegistry(db, replication, replicas, redisDataBase);
     }
 
-    /** A fresh session for a newly connected client. */
+    /** A fresh session for a newly connected client; {@code connection} is where
+     *  PUBLISH pushes messages (null for socket-free callers). */
+    public ClientSession newSession(java.io.OutputStream connection) {
+        return new ClientSession(db.stringStore(), connection);
+    }
+
     public ClientSession newSession() {
-        return new ClientSession(db.stringStore());
+        return newSession(null);
     }
 
     public Replicas replicas() {
@@ -89,7 +94,7 @@ public class CommandDispatcher {
                         RespEncoder.bulkString(channel),
                         RespEncoder.respInteger(session.subscribe(channel)));
             }
-            case "PUBLISH" -> RespEncoder.respInteger(pubSub.subscriberCount(args.get(1)));
+            case "PUBLISH" -> RespEncoder.respInteger(pubSub.publish(args.get(1), args.get(2)));
             case "PING" -> session.inSubscribedMode()
                     ? RespEncoder.concat("*2\r\n".getBytes(),
                             RespEncoder.bulkString("pong"), RespEncoder.bulkString(""))
