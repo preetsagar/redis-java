@@ -37,7 +37,11 @@ public class SortedSetStore {
         }
     }
 
-    /** Members from {@code start} to {@code stop} inclusive, in rank order; empty if out of range. */
+    /**
+     * Members from {@code start} to {@code stop} inclusive, in rank order. A
+     * negative index counts from the end (-1 = last); if its magnitude exceeds
+     * the size it clamps to 0. Empty if the range selects nothing.
+     */
     public List<String> range(String key, int start, int stop) {
         synchronized (lock) {
             Map<String, Double> set = data.get(key);
@@ -45,11 +49,17 @@ public class SortedSetStore {
                 return List.of();
             }
             List<String> ordered = orderedMembers(set);
-            start = Math.max(start, 0);
-            if (start > stop || start >= ordered.size()) {
+            int size = ordered.size();
+            if (start < 0) {
+                start = Math.max(0, size + start);
+            }
+            if (stop < 0) {
+                stop = Math.max(0, size + stop);
+            }
+            if (start > stop || start >= size) {
                 return List.of();
             }
-            return new ArrayList<>(ordered.subList(start, Math.min(stop, ordered.size() - 1) + 1));
+            return new ArrayList<>(ordered.subList(start, Math.min(stop, size - 1) + 1));
         }
     }
 

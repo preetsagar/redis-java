@@ -62,6 +62,27 @@ class SortedSetStoreTest {
     }
 
     @Test
+    void rangeAcceptsNegativeIndexes() {
+        store.add("z", 8.5, "Sam-Bodden");
+        store.add("z", 10.2, "Royce");
+        store.add("z", 6.1, "Ford");
+        store.add("z", 14.9, "Prickett");
+        store.add("z", 10.2, "Ben"); // order: Ford, Sam-Bodden, Ben, Royce, Prickett
+
+        assertEquals(List.of("Royce", "Prickett"), store.range("z", -2, -1));
+        assertEquals(List.of("Ford", "Sam-Bodden", "Ben"), store.range("z", 0, -3));
+    }
+
+    @Test
+    void negativeIndexBeyondSizeClampsToStart() {
+        store.add("z", 1, "a");
+        store.add("z", 2, "b");
+        store.add("z", 3, "c");
+
+        assertEquals(List.of("a", "b", "c"), store.range("z", -100, -1));
+    }
+
+    @Test
     void rangeClampsStopAndReturnsEmptyWhenOutOfRange() {
         store.add("z", 1, "a");
         store.add("z", 2, "b");

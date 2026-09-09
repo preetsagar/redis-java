@@ -135,6 +135,18 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void zrangeAcceptsNegativeIndexes() {
+        send("ZADD", "z", "20.0", "foo");
+        send("ZADD", "z", "30.1", "bar");
+        send("ZADD", "z", "40.2", "baz");
+        send("ZADD", "z", "25.0", "paz");
+        send("ZADD", "z", "25.0", "caz"); // rank order: foo caz paz bar baz
+
+        assertEquals("*3\r\n$3\r\npaz\r\n$3\r\nbar\r\n$3\r\nbaz\r\n", send("ZRANGE", "z", "2", "-1"));
+        assertEquals("*2\r\n$3\r\nbar\r\n$3\r\nbaz\r\n", send("ZRANGE", "z", "-2", "-1"));
+    }
+
+    @Test
     void writeCommandsPropagateToReplicasVerbatimAndOthersDoNot() {
         java.io.ByteArrayOutputStream link = new java.io.ByteArrayOutputStream();
         replicas.register(link);
