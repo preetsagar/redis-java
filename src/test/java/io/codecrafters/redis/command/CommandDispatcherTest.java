@@ -105,6 +105,23 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void zrankReturnsRankOrNilBulkString() {
+        send("ZADD", "z", "100.0", "foo");
+        send("ZADD", "z", "100.0", "bar");
+        send("ZADD", "z", "20.0", "baz");
+        send("ZADD", "z", "30.1", "caz");
+        send("ZADD", "z", "40.2", "paz");
+
+        assertEquals(":0\r\n", send("ZRANK", "z", "baz"));
+        assertEquals(":1\r\n", send("ZRANK", "z", "caz"));
+        assertEquals(":3\r\n", send("ZRANK", "z", "bar")); // tie with foo, "bar" < "foo"
+        assertEquals(":4\r\n", send("ZRANK", "z", "foo"));
+
+        assertEquals("$-1\r\n", send("ZRANK", "z", "missing"));
+        assertEquals("$-1\r\n", send("ZRANK", "missing", "foo"));
+    }
+
+    @Test
     void writeCommandsPropagateToReplicasVerbatimAndOthersDoNot() {
         java.io.ByteArrayOutputStream link = new java.io.ByteArrayOutputStream();
         replicas.register(link);
