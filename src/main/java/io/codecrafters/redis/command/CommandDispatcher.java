@@ -36,6 +36,7 @@ public class CommandDispatcher {
     private final Rdb redisDataBase;
     private final Aof aof;
     private final PubSub pubSub;
+    private final DefaultUser user;
 
     public CommandDispatcher(Database db, ReplicationInfo replication, Replicas replicas,
                              Rdb redisDataBase, Aof aof, PubSub pubSub, DefaultUser user) {
@@ -45,13 +46,15 @@ public class CommandDispatcher {
         this.redisDataBase = redisDataBase;
         this.aof = aof;
         this.pubSub = pubSub;
+        this.user = user;
         this.registry = new CommandRegistry(db, replication, replicas, redisDataBase, user);
     }
 
     /** A fresh session for a newly connected client; {@code connection} is where
-     *  PUBLISH pushes messages (null for socket-free callers). */
+     *  PUBLISH pushes messages (null for socket-free callers). Authenticated up
+     *  front only while the default user still has nopass. */
     public ClientSession newSession(java.io.OutputStream connection) {
-        return new ClientSession(db.stringStore(), connection);
+        return new ClientSession(db.stringStore(), connection, user.nopass());
     }
 
     public ClientSession newSession() {
@@ -64,6 +67,10 @@ public class CommandDispatcher {
 
     public byte[] dispatch(List<String> args, ClientSession session) {
         String commandName = args.get(0).toUpperCase();
+
+        if (!session.isAuthenticated() && !commandName.equals("AUTH")) {
+            return RespEncoder.simpleError("NOAUTH Authentication required.");
+        }
 
         if (session.inSubscribedMode() && !SUBSCRIBED_MODE_ALLOWED.contains(commandName)) {
             return RespEncoder.error("Can't execute '" + commandName.toLowerCase()
@@ -79,6 +86,13 @@ public class CommandDispatcher {
             case "MULTI" -> {
                 session.beginMulti();
                 yield RespEncoder.simpleString("OK");
+            }
+            case "AUTH" -> {
+                if (user.authenticates(args.get(2))) {
+                    session.authenticate();
+                    yield RespEncoder.simpleString("OK");
+                }
+                yield RespEncoder.simpleError("WRONGPASS invalid username-password pair or user is disabled.");
             }
             case "EXEC" -> exec(session);
             case "DISCARD" -> discard(session);

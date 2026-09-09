@@ -23,13 +23,23 @@ public class ClientSession {
     private final OutputStream connection; // null for socket-free tests
 
     private boolean inMulti = false;
+    private boolean authenticated;
     private final List<List<String>> commandQueue = new ArrayList<>();
     // Key -> version snapshotted at WATCH time. EXEC aborts if any current version differs.
     private final Map<String, Long> watchedVersions = new HashMap<>();
 
-    public ClientSession(Store store, OutputStream connection) {
+    public ClientSession(Store store, OutputStream connection, boolean authenticated) {
         this.store = store;
         this.connection = connection;
+        this.authenticated = authenticated;
+    }
+
+    public boolean isAuthenticated() {
+        return authenticated;
+    }
+
+    public void authenticate() {
+        authenticated = true;
     }
 
     public boolean inMulti() {

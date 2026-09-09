@@ -365,6 +365,22 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void connectionsOpenedAfterAPasswordIsSetMustAuthBeforeAnyCommand() {
+        send("ACL", "SETUSER", "default", ">mypassword");
+        ClientSession fresh = dispatcher.newSession(); // opened after nopass cleared
+
+        assertEquals("-NOAUTH Authentication required.\r\n",
+                new String(dispatcher.dispatch(List.of("ACL", "WHOAMI"), fresh), StandardCharsets.UTF_8));
+        assertEquals("+OK\r\n",
+                new String(dispatcher.dispatch(List.of("AUTH", "default", "mypassword"), fresh), StandardCharsets.UTF_8));
+        assertEquals("$7\r\ndefault\r\n",
+                new String(dispatcher.dispatch(List.of("ACL", "WHOAMI"), fresh), StandardCharsets.UTF_8));
+
+        // the session from setUp() predates the password and stays authenticated
+        assertEquals("$7\r\ndefault\r\n", send("ACL", "WHOAMI"));
+    }
+
+    @Test
     void infoRoutesToServerCommandAndRepliesWithABulkString() {
         String reply = send("INFO", "replication");
         assertTrue(reply.startsWith("$"), reply);

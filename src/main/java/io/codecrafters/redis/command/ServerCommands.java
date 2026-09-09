@@ -17,11 +17,6 @@ public class ServerCommands extends CommandGroup {
 
         add("REPLCONF", args -> RespEncoder.simpleString("OK"));
 
-        // AUTH <username> <password>. ponytail: doesn't yet mark the connection authenticated.
-        add("AUTH", args -> user.authenticates(args.get(2))
-                ? RespEncoder.simpleString("OK")
-                : RespEncoder.simpleError("WRONGPASS invalid username-password pair or user is disabled."));
-
         // ponytail: single "default" user; auth enforcement lands later
         add("ACL", args -> switch (args.get(1).toUpperCase()) {
             case "WHOAMI" -> RespEncoder.bulkString("default");
