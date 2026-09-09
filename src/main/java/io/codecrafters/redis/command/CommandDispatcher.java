@@ -4,6 +4,7 @@ import io.codecrafters.redis.ReplicationInfo;
 import io.codecrafters.redis.aof.Aof;
 import io.codecrafters.redis.client.ClientSession;
 import io.codecrafters.redis.protocol.RespEncoder;
+import io.codecrafters.redis.pubsub.PubSub;
 import io.codecrafters.redis.rdb.Rdb;
 import io.codecrafters.redis.replication.Replicas;
 import io.codecrafters.redis.store.Database;
@@ -33,13 +34,16 @@ public class CommandDispatcher {
     private final ReplicationInfo replication;
     private final Rdb redisDataBase;
     private final Aof aof;
+    private final PubSub pubSub;
 
-    public CommandDispatcher(Database db, ReplicationInfo replication, Replicas replicas, Rdb redisDataBase, Aof aof) {
+    public CommandDispatcher(Database db, ReplicationInfo replication, Replicas replicas,
+                             Rdb redisDataBase, Aof aof, PubSub pubSub) {
         this.db = db;
         this.replicas = replicas;
         this.replication = replication;
         this.redisDataBase = redisDataBase;
         this.aof = aof;
+        this.pubSub = pubSub;
         this.registry = new CommandRegistry(db, replication, replicas, redisDataBase);
     }
 
@@ -79,11 +83,13 @@ public class CommandDispatcher {
             }
             case "SUBSCRIBE" -> {
                 String channel = args.get(1);
+                pubSub.subscribe(channel, session);
                 yield RespEncoder.concat("*3\r\n".getBytes(),
                         RespEncoder.bulkString("subscribe"),
                         RespEncoder.bulkString(channel),
                         RespEncoder.respInteger(session.subscribe(channel)));
             }
+            case "PUBLISH" -> RespEncoder.respInteger(pubSub.subscriberCount(args.get(1)));
             case "PING" -> session.inSubscribedMode()
                     ? RespEncoder.concat("*2\r\n".getBytes(),
                             RespEncoder.bulkString("pong"), RespEncoder.bulkString(""))

@@ -3,6 +3,7 @@ package io.codecrafters.redis;
 import io.codecrafters.redis.aof.Aof;
 import io.codecrafters.redis.client.ClientHandler;
 import io.codecrafters.redis.command.CommandDispatcher;
+import io.codecrafters.redis.pubsub.PubSub;
 import io.codecrafters.redis.rdb.Rdb;
 import io.codecrafters.redis.rdb.RdbReader;
 import io.codecrafters.redis.replication.ReplicationClient;
@@ -31,7 +32,8 @@ public class RedisServer {
         Rdb reddisDataBase = new Rdb(getParsed().get("dbfilename"), getParsed().get("dir"));
         RdbReader.loadInto(Path.of(reddisDataBase.getDir(), reddisDataBase.getDbFileName()), db.stringStore());
         Aof aof = Aof.open(getParsed(), reddisDataBase.getDir());
-        CommandDispatcher dispatcher = new CommandDispatcher(db, replication, new Replicas(), reddisDataBase, aof);
+        CommandDispatcher dispatcher = new CommandDispatcher(
+                db, replication, new Replicas(), reddisDataBase, aof, new PubSub());
         aof.replay(dispatcher); // rebuild state from the AOF before accepting clients
 
         if (replication.role().equals("slave")) {
