@@ -92,6 +92,20 @@ public class Store {
         return previous;
     }
 
+    /** Bit at {@code offset} (0 = MSB of byte 0); 0 if the key is missing or the offset is past the end. */
+    public int getBit(String key, int offset) {
+        String value = get(key);
+        if (value == null) {
+            return 0;
+        }
+        byte[] bytes = value.getBytes(StandardCharsets.ISO_8859_1);
+        int byteIndex = offset / 8;
+        if (byteIndex >= bytes.length) {
+            return 0;
+        }
+        return (bytes[byteIndex] & (1 << (7 - offset % 8))) != 0 ? 1 : 0;
+    }
+
     public String increment(String key) {
         String existing = get(key);
         int current = existing == null ? 0 : Integer.parseInt(existing);

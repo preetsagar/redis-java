@@ -34,5 +34,9 @@ public class StringCommands extends CommandGroup {
         // SETBIT key offset value -> the bit that was there before
         add("SETBIT", args -> RespEncoder.respInteger(store.setBit(
                 args.get(1), Integer.parseInt(args.get(2)), Integer.parseInt(args.get(3)))));
+
+        // GETBIT key offset -> the bit at that offset (0 if unset / key missing)
+        add("GETBIT", args -> RespEncoder.respInteger(
+                store.getBit(args.get(1), Integer.parseInt(args.get(2)))));
     }
 }

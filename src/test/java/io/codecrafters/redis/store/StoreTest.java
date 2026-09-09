@@ -118,6 +118,20 @@ class StoreTest {
         assertEquals(3, store.get("bm").length());
     }
 
+    @Test
+    void getBitReadsBackWhatSetBitWrote() {
+        store.setBit("bm", 2, 1);
+        assertEquals(1, store.getBit("bm", 2));
+        assertEquals(0, store.getBit("bm", 3));
+    }
+
+    @Test
+    void getBitIsZeroForMissingKeyOrOffsetPastEnd() {
+        assertEquals(0, store.getBit("missing", 2));
+        store.setBit("bm", 0, 1);
+        assertEquals(0, store.getBit("bm", 999));
+    }
+
     // Key version tracking (used by WATCH/EXEC)
 
     @Test
