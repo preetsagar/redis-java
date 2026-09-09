@@ -1,6 +1,7 @@
 *.jar
 target/
 .idea/
+/src/resource/
 graphify-out/
 .claude/
 CLAUDE.md
