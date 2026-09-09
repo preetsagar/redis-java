@@ -1,10 +1,12 @@
 package io.codecrafters.redis.command;
 
+import io.codecrafters.redis.Main;
 import io.codecrafters.redis.ReplicationInfo;
 import io.codecrafters.redis.client.ClientSession;
 import io.codecrafters.redis.rdb.Rdb;
 import io.codecrafters.redis.replication.Replicas;
 import io.codecrafters.redis.store.Database;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -30,6 +32,12 @@ class CommandDispatcherTest {
         replicas = new Replicas();
         dispatcher = new CommandDispatcher(new Database(), new ReplicationInfo("master"), replicas, new Rdb());
         session = dispatcher.newSession();
+    }
+
+    @AfterEach
+    void clearAofFlags() {
+        Main.getParsed().keySet().removeAll(
+                List.of("appendonly", "appenddirname", "appendfilename", "appendfsync"));
     }
 
     private String send(String... args) {
@@ -69,6 +77,22 @@ class CommandDispatcherTest {
         assertEquals("*2\r\n$13\r\nappenddirname\r\n$13\r\nappendonlydir\r\n", send("CONFIG", "GET", "appenddirname"));
         assertEquals("*2\r\n$14\r\nappendfilename\r\n$14\r\nappendonly.aof\r\n", send("CONFIG", "GET", "appendfilename"));
         assertEquals("*2\r\n$11\r\nappendfsync\r\n$8\r\neverysec\r\n", send("CONFIG", "GET", "appendfsync"));
+    }
+
+    @Test
+    void configGetReflectsAofFlagOverrides() {
+        Main.getParsed().put("appendonly", "yes");
+        Main.getParsed().put("appenddirname", "myaof");
+        CommandDispatcher d = new CommandDispatcher(new Database(), new ReplicationInfo("master"), new Replicas(), new Rdb());
+        ClientSession s = d.newSession();
+
+        assertEquals("*2\r\n$10\r\nappendonly\r\n$3\r\nyes\r\n",
+                new String(d.dispatch(List.of("CONFIG", "GET", "appendonly"), s)));
+        assertEquals("*2\r\n$13\r\nappenddirname\r\n$5\r\nmyaof\r\n",
+                new String(d.dispatch(List.of("CONFIG", "GET", "appenddirname"), s)));
+        // an untouched option still falls back to its default
+        assertEquals("*2\r\n$11\r\nappendfsync\r\n$8\r\neverysec\r\n",
+                new String(d.dispatch(List.of("CONFIG", "GET", "appendfsync"), s)));
     }
 
     @Test
