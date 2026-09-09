@@ -22,6 +22,7 @@ public class CommandRegistry {
         register(new StringCommands(db.stringStore()));
         register(new ListCommands(db.listStore()));
         register(new StreamCommands(db.streamStore()));
+        register(new SortedSetCommands(db.sortedSetStore()));
         register(new KeyCommands(db));
         register(new ServerCommands(replication, replicas));
         register(new RDBPersistenceCommands(redisDataBase));

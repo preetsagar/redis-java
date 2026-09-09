@@ -9,6 +9,7 @@ public class Database {
     private final Store stringStore = new Store();
     private final ListStore listStore = new ListStore();
     private final StreamStore streamStore = new StreamStore();
+    private final SortedSetStore sortedSetStore = new SortedSetStore();
 
     public Store stringStore() {
         return stringStore;
@@ -20,5 +21,9 @@ public class Database {
 
     public StreamStore streamStore() {
         return streamStore;
+    }
+
+    public SortedSetStore sortedSetStore() {
+        return sortedSetStore;
     }
 }

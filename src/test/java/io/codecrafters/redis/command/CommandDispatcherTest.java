@@ -98,6 +98,13 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void zaddReturnsTheNumberOfNewMembers() {
+        assertEquals(":1\r\n", send("ZADD", "racers", "8.0", "Sam"));
+        assertEquals(":0\r\n", send("ZADD", "racers", "9.0", "Sam")); // score update, not new
+        assertEquals(":1\r\n", send("ZADD", "racers", "6.1", "Ford"));
+    }
+
+    @Test
     void writeCommandsPropagateToReplicasVerbatimAndOthersDoNot() {
         java.io.ByteArrayOutputStream link = new java.io.ByteArrayOutputStream();
         replicas.register(link);
