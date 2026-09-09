@@ -75,6 +75,11 @@ public class RespEncoder {
         return ("-ERR " + message + "\r\n").getBytes();
     }
 
+    /** A RESP simple error with the message verbatim (no {@code ERR} prefix), e.g. {@code -WRONGPASS ...}. */
+    public static byte[] simpleError(String message) {
+        return ("-" + message + "\r\n").getBytes();
+    }
+
     public static byte[] respInteger(Integer value) {
         return (":"+value+"\r\n").getBytes();
     }

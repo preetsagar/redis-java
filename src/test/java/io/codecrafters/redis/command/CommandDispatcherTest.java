@@ -357,6 +357,14 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void authOkForCorrectPasswordAndWrongpassOtherwise() {
+        send("ACL", "SETUSER", "default", ">mypassword");
+        assertEquals("+OK\r\n", send("AUTH", "default", "mypassword"));
+        assertTrue(send("AUTH", "default", "wrongpassword").startsWith("-WRONGPASS"),
+                send("AUTH", "default", "wrongpassword"));
+    }
+
+    @Test
     void infoRoutesToServerCommandAndRepliesWithABulkString() {
         String reply = send("INFO", "replication");
         assertTrue(reply.startsWith("$"), reply);

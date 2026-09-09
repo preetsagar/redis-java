@@ -30,6 +30,11 @@ public final class DefaultUser {
         return List.copyOf(passwordHashes);
     }
 
+    /** True if {@code plaintext} authenticates: nopass, or its hash is one of the stored ones. */
+    public synchronized boolean authenticates(String plaintext) {
+        return nopass || passwordHashes.contains(sha256Hex(plaintext));
+    }
+
     private static String sha256Hex(String value) {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
