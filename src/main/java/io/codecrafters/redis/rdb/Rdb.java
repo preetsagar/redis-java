@@ -34,7 +34,7 @@ public final class Rdb {
 
     public Rdb(String dbFileName, String dir) {
         this.dbFileName = dbFileName != null ? dbFileName : "dump.rdb";
-        this.dir = dir != null ? dir : ".";
+        this.dir = dir != null ? dir : System.getProperty("user.dir");
     }
 
     public String getDir() {

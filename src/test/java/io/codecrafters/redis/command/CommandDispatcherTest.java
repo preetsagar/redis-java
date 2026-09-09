@@ -64,6 +64,14 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void configGetReturnsTwoElementArraysForAofDefaults() {
+        assertEquals("*2\r\n$10\r\nappendonly\r\n$2\r\nno\r\n", send("CONFIG", "GET", "appendonly"));
+        assertEquals("*2\r\n$13\r\nappenddirname\r\n$13\r\nappendonlydir\r\n", send("CONFIG", "GET", "appenddirname"));
+        assertEquals("*2\r\n$14\r\nappendfilename\r\n$14\r\nappendonly.aof\r\n", send("CONFIG", "GET", "appendfilename"));
+        assertEquals("*2\r\n$11\r\nappendfsync\r\n$8\r\neverysec\r\n", send("CONFIG", "GET", "appendfsync"));
+    }
+
+    @Test
     void writeCommandsPropagateToReplicasVerbatimAndOthersDoNot() {
         java.io.ByteArrayOutputStream link = new java.io.ByteArrayOutputStream();
         replicas.register(link);
