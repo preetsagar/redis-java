@@ -159,6 +159,19 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void zscoreReturnsTheScoreOrNilBulkString() {
+        send("ZADD", "z", "24.34", "one");
+        send("ZADD", "z", "90.34", "two");
+        assertEquals("$5\r\n24.34\r\n", send("ZSCORE", "z", "one"));
+
+        send("ZADD", "z", "100.99", "one"); // update
+        assertEquals("$6\r\n100.99\r\n", send("ZSCORE", "z", "one"));
+
+        assertEquals("$-1\r\n", send("ZSCORE", "z", "three"));
+        assertEquals("$-1\r\n", send("ZSCORE", "missing", "one"));
+    }
+
+    @Test
     void writeCommandsPropagateToReplicasVerbatimAndOthersDoNot() {
         java.io.ByteArrayOutputStream link = new java.io.ByteArrayOutputStream();
         replicas.register(link);

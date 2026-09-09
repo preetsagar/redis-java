@@ -34,6 +34,14 @@ public class SortedSetStore {
         }
     }
 
+    /** Score of {@code member}, or null if the key or member doesn't exist. */
+    public Double score(String key, String member) {
+        synchronized (lock) {
+            Map<String, Double> set = data.get(key);
+            return set == null ? null : set.get(member);
+        }
+    }
+
     /** 0-based index of {@code member} ordered by (score asc, then member asc); null if absent. */
     public Integer rank(String key, String member) {
         synchronized (lock) {

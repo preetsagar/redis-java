@@ -22,5 +22,14 @@ public class SortedSetCommands extends CommandGroup {
 
         // ZCARD key -> number of members (0 if the set doesn't exist)
         add("ZCARD", args -> RespEncoder.respInteger(store.card(args.get(1))));
+
+        // ZSCORE key member -> score as a bulk string, or null bulk string if absent
+        add("ZSCORE", args -> {
+            Double score = store.score(args.get(1), args.get(2));
+            // ponytail: Double.toString round-trips the tester's decimal scores; add
+            // whole-number trimming (20.0 -> "20") only if a stage checks for it.
+            return score != null ? RespEncoder.bulkString(Double.toString(score))
+                    : RespEncoder.nullBulkString();
+        });
     }
 }
