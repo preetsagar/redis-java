@@ -77,4 +77,9 @@ public class ClientSession {
         channels.add(channel);
         return channels.size();
     }
+
+    /** True once this client holds at least one subscription (restricted command set applies). */
+    public boolean inSubscribedMode() {
+        return !channels.isEmpty();
+    }
 }

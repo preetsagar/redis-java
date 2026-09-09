@@ -136,6 +136,19 @@ class CommandDispatcherTest {
         assertEquals("*3\r\n$9\r\nsubscribe\r\n$3\r\nbar\r\n:2\r\n", send("SUBSCRIBE", "bar"));
     }
 
+    @Test
+    void subscribedModeRejectsNonPubSubCommands() {
+        send("SUBSCRIBE", "foo");
+
+        String setReply = send("SET", "k", "v");
+        assertTrue(setReply.startsWith("-ERR Can't execute 'set'"), setReply);
+        assertTrue(send("ECHO", "hey").startsWith("-ERR Can't execute 'echo'"));
+
+        // pub/sub commands and PING still work
+        assertEquals("*3\r\n$9\r\nsubscribe\r\n$3\r\nbar\r\n:2\r\n", send("SUBSCRIBE", "bar"));
+        assertEquals("+PONG\r\n", send("PING"));
+    }
+
     // --- master side of the replication handshake ---
 
     @Test

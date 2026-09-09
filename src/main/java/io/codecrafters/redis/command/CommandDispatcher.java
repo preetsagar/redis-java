@@ -23,6 +23,10 @@ public class CommandDispatcher {
     private static final Set<String> WRITE_COMMANDS =
             Set.of("SET", "DEL", "INCR", "LPUSH", "RPUSH", "LPOP", "XADD");
 
+    // The only commands a client in subscribed mode may run.
+    private static final Set<String> SUBSCRIBED_MODE_ALLOWED = Set.of(
+            "SUBSCRIBE", "UNSUBSCRIBE", "PSUBSCRIBE", "PUNSUBSCRIBE", "PING", "QUIT", "RESET");
+
     private final Database db;
     private final CommandRegistry registry;
     private final Replicas replicas;
@@ -50,6 +54,11 @@ public class CommandDispatcher {
 
     public byte[] dispatch(List<String> args, ClientSession session) {
         String commandName = args.get(0).toUpperCase();
+
+        if (session.inSubscribedMode() && !SUBSCRIBED_MODE_ALLOWED.contains(commandName)) {
+            return RespEncoder.error("Can't execute '" + commandName.toLowerCase()
+                    + "': only (P|S)SUBSCRIBE / (P|S)UNSUBSCRIBE / PING / QUIT / RESET are allowed in this context");
+        }
 
         if (session.inMulti() && !bypassesQueue(commandName)) {
             session.queue(args);
