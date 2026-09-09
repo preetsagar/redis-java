@@ -106,6 +106,29 @@ public class Store {
         return (bytes[byteIndex] & (1 << (7 - offset % 8))) != 0 ? 1 : 0;
     }
 
+    /**
+     * Number of 1-bits in bytes {@code startByte}..{@code endByte} (inclusive).
+     * 0 if the key is missing, {@code startByte} is past the end, or start &gt; end;
+     * {@code endByte} clamps to the last byte. Pass {@code Integer.MAX_VALUE} for
+     * "to the end".
+     */
+    public int bitCount(String key, int startByte, int endByte) {
+        String value = get(key);
+        if (value == null) {
+            return 0;
+        }
+        byte[] bytes = value.getBytes(StandardCharsets.ISO_8859_1);
+        if (startByte >= bytes.length || startByte > endByte) {
+            return 0;
+        }
+        int end = Math.min(endByte, bytes.length - 1);
+        int count = 0;
+        for (int i = startByte; i <= end; i++) {
+            count += Integer.bitCount(bytes[i] & 0xFF);
+        }
+        return count;
+    }
+
     /** Length of the string value in bytes; 0 if the key doesn't exist. */
     public int strlen(String key) {
         String value = get(key);

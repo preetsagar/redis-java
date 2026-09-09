@@ -197,6 +197,18 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void bitcountCountsSetBitsWithAndWithoutARange() {
+        send("SETBIT", "bm", "1", "1");
+        send("SETBIT", "bm", "10", "1"); // 01000000 00100000
+
+        assertEquals(":2\r\n", send("BITCOUNT", "bm"));
+        assertEquals(":2\r\n", send("BITCOUNT", "bm", "0", "1"));
+        assertEquals(":1\r\n", send("BITCOUNT", "bm", "0", "0"));
+        assertEquals(":1\r\n", send("BITCOUNT", "bm", "1", "1"));
+        assertEquals(":0\r\n", send("BITCOUNT", "missing"));
+    }
+
+    @Test
     void zremRemovesAMemberAndReportsHowMany() {
         send("ZADD", "z", "80.5", "foo");
         send("ZADD", "z", "50.3", "baz");

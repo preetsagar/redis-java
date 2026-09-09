@@ -41,5 +41,12 @@ public class StringCommands extends CommandGroup {
 
         // STRLEN key -> length of the string value in bytes (0 if missing)
         add("STRLEN", args -> RespEncoder.respInteger(store.strlen(args.get(1))));
+
+        // BITCOUNT key [start end]  (byte range, inclusive) -> number of 1-bits
+        add("BITCOUNT", args -> {
+            int start = args.size() >= 4 ? Integer.parseInt(args.get(2)) : 0;
+            int end = args.size() >= 4 ? Integer.parseInt(args.get(3)) : Integer.MAX_VALUE;
+            return RespEncoder.respInteger(store.bitCount(args.get(1), start, end));
+        });
     }
 }

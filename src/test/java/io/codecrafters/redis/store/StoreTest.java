@@ -141,6 +141,19 @@ class StoreTest {
         assertEquals(2, store.strlen("bm"));
     }
 
+    @Test
+    void bitCountCountsSetBitsWholeStringAndByteRanges() {
+        store.setBit("bm", 1, 1);
+        store.setBit("bm", 10, 1); // 01000000 00100000
+
+        assertEquals(2, store.bitCount("bm", 0, Integer.MAX_VALUE)); // whole
+        assertEquals(1, store.bitCount("bm", 0, 0));                 // first byte
+        assertEquals(1, store.bitCount("bm", 1, 1));                 // second byte
+        assertEquals(0, store.bitCount("bm", 5, 9));                 // start past end
+        assertEquals(0, store.bitCount("bm", 1, 0));                 // start > end
+        assertEquals(0, store.bitCount("missing", 0, Integer.MAX_VALUE));
+    }
+
     // Key version tracking (used by WATCH/EXEC)
 
     @Test
