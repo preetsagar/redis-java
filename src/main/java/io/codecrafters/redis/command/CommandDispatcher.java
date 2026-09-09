@@ -84,6 +84,10 @@ public class CommandDispatcher {
                         RespEncoder.bulkString(channel),
                         RespEncoder.respInteger(session.subscribe(channel)));
             }
+            case "PING" -> session.inSubscribedMode()
+                    ? RespEncoder.concat("*2\r\n".getBytes(),
+                            RespEncoder.bulkString("pong"), RespEncoder.bulkString(""))
+                    : registry.get("PING").execute(args);
             default -> {
                 Command command = registry.get(commandName);
                 if (command == null) {
