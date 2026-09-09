@@ -40,10 +40,16 @@ class AofDirectoryIT {
 
         startServer();
 
-        Path aofFile = dir.resolve("myaof").resolve("custom.aof.1.incr.aof");
-        assertTrue(Files.isDirectory(dir.resolve("myaof")), "startup should have created <dir>/myaof");
+        Path aofDir = dir.resolve("myaof");
+        assertTrue(Files.isDirectory(aofDir), "startup should have created <dir>/myaof");
+
+        Path aofFile = aofDir.resolve("custom.aof.1.incr.aof");
         assertTrue(Files.isRegularFile(aofFile), "startup should have created the .1.incr.aof file");
         assertEquals(0, Files.size(aofFile), "the AOF file should be empty");
+
+        Path manifest = aofDir.resolve("custom.aof.manifest");
+        assertTrue(Files.isRegularFile(manifest), "startup should have created the manifest");
+        assertEquals("file custom.aof.1.incr.aof seq 1 type i\n", Files.readString(manifest));
     }
 
     @Test

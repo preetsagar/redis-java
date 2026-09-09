@@ -33,15 +33,7 @@ public class RedisServer {
         CommandDispatcher dispatcher = new CommandDispatcher(db, replication, new Replicas(), reddisDataBase);
 
         if ("yes".equals(getParsed().get("appendonly"))) {
-            Path appendDir = Path.of(reddisDataBase.getDir(),
-                    getParsed().getOrDefault("appenddirname", "appendonlydir"));
-            String appendFile = getParsed().getOrDefault("appendfilename", "appendonly.aof");
-            try {
-                Files.createDirectories(appendDir); // no-op if it already exists
-                Files.write(appendDir.resolve(appendFile + ".1.incr.aof"), new byte[0]);
-            } catch (IOException e) {
-                System.out.println("[aof] could not set up " + appendDir + ": " + e.getMessage());
-            }
+            setUpAof(reddisDataBase.getDir());
         }
 
         if (replication.role().equals("slave")) {
@@ -63,6 +55,21 @@ public class RedisServer {
             if (!serverSocket.isClosed()) {
                 System.out.println("Server error: " + e.getMessage());
             }
+        }
+    }
+
+    // Redis AOF startup layout: <dir>/<appenddirname>/ with an empty first
+    // incremental file and a manifest pointing at it. No persistence logic yet.
+    private void setUpAof(String dir) {
+        Path appendDir = Path.of(dir, getParsed().getOrDefault("appenddirname", "appendonlydir"));
+        String appendFile = getParsed().getOrDefault("appendfilename", "appendonly.aof");
+        try {
+            Files.createDirectories(appendDir); // no-op if it already exists
+            Files.write(appendDir.resolve(appendFile + ".1.incr.aof"), new byte[0]);
+            Files.writeString(appendDir.resolve(appendFile + ".manifest"),
+                    "file " + appendFile + ".1.incr.aof seq 1 type i\n");
+        } catch (IOException e) {
+            System.out.println("[aof] could not set up " + appendDir + ": " + e.getMessage());
         }
     }
 
