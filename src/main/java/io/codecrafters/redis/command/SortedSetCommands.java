@@ -23,6 +23,9 @@ public class SortedSetCommands extends CommandGroup {
         // ZCARD key -> number of members (0 if the set doesn't exist)
         add("ZCARD", args -> RespEncoder.respInteger(store.card(args.get(1))));
 
+        // ZREM key member -> 1 if removed, 0 if the member wasn't there
+        add("ZREM", args -> RespEncoder.respInteger(store.remove(args.get(1), args.get(2))));
+
         // ZSCORE key member -> score as a bulk string, or null bulk string if absent
         add("ZSCORE", args -> {
             Double score = store.score(args.get(1), args.get(2));

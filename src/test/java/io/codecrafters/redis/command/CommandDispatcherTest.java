@@ -172,6 +172,17 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void zremRemovesAMemberAndReportsHowMany() {
+        send("ZADD", "z", "80.5", "foo");
+        send("ZADD", "z", "50.3", "baz");
+        send("ZADD", "z", "80.5", "bar");
+
+        assertEquals(":1\r\n", send("ZREM", "z", "baz"));
+        assertEquals("*2\r\n$3\r\nbar\r\n$3\r\nfoo\r\n", send("ZRANGE", "z", "0", "-1"));
+        assertEquals(":0\r\n", send("ZREM", "z", "missing_member"));
+    }
+
+    @Test
     void writeCommandsPropagateToReplicasVerbatimAndOthersDoNot() {
         java.io.ByteArrayOutputStream link = new java.io.ByteArrayOutputStream();
         replicas.register(link);

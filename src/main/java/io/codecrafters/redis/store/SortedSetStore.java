@@ -26,6 +26,14 @@ public class SortedSetStore {
         }
     }
 
+    /** Removes {@code member}; returns 1 if it was present, 0 otherwise. */
+    public int remove(String key, String member) {
+        synchronized (lock) {
+            Map<String, Double> set = data.get(key);
+            return set != null && set.remove(member) != null ? 1 : 0;
+        }
+    }
+
     /** Number of members in the sorted set; 0 if the key doesn't exist. */
     public int card(String key) {
         synchronized (lock) {

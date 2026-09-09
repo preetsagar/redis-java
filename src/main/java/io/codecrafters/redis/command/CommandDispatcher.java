@@ -22,7 +22,7 @@ public class CommandDispatcher {
 
     // Commands that mutate the dataset and must be propagated to replicas.
     private static final Set<String> WRITE_COMMANDS =
-            Set.of("SET", "DEL", "INCR", "LPUSH", "RPUSH", "LPOP", "XADD", "ZADD");
+            Set.of("SET", "DEL", "INCR", "LPUSH", "RPUSH", "LPOP", "XADD", "ZADD", "ZREM");
 
     // The only commands a client in subscribed mode may run.
     private static final Set<String> SUBSCRIBED_MODE_ALLOWED = Set.of(
