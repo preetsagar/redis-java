@@ -17,4 +17,11 @@ class GeoHashTest {
         assertEquals(3252046221964352L, GeoHash.encode(-33.8688, 151.2093)); // Sydney
         assertEquals(4171231230197045L, GeoHash.encode(35.6895, 139.6917));  // Tokyo
     }
+
+    @Test
+    void decodesAKnownScore() {
+        double[] pos = GeoHash.decode(3663832614298053L); // [lon, lat]
+        assertEquals(2.2944715, pos[0], 1e-6);
+        assertEquals(48.8584625, pos[1], 1e-6);
+    }
 }

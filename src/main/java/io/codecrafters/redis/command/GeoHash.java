@@ -23,6 +23,31 @@ final class GeoHash {
         return spread(latInt) | (spread(lonInt) << 1);
     }
 
+    /** Reverses {@link #encode}: score -> {@code [longitude, latitude]} (grid-cell centre). */
+    static double[] decode(long score) {
+        int gridLat = compact(score);
+        int gridLon = compact(score >> 1);
+        double latitude = midpoint(MIN_LATITUDE, LATITUDE_RANGE, gridLat);
+        double longitude = midpoint(MIN_LONGITUDE, LONGITUDE_RANGE, gridLon);
+        return new double[]{longitude, latitude};
+    }
+
+    private static double midpoint(double min, double range, int gridNumber) {
+        double lo = min + range * (gridNumber / GRID);
+        double hi = min + range * ((gridNumber + 1) / GRID);
+        return (lo + hi) / 2;
+    }
+
+    private static int compact(long v) {
+        v = v & 0x5555555555555555L;
+        v = (v | (v >> 1)) & 0x3333333333333333L;
+        v = (v | (v >> 2)) & 0x0F0F0F0F0F0F0F0FL;
+        v = (v | (v >> 4)) & 0x00FF00FF00FF00FFL;
+        v = (v | (v >> 8)) & 0x0000FFFF0000FFFFL;
+        v = (v | (v >> 16)) & 0x00000000FFFFFFFFL;
+        return (int) v;
+    }
+
     private static long spread(int v) {
         long result = v & 0xFFFFFFFFL;
         result = (result | (result << 16)) & 0x0000FFFF0000FFFFL;

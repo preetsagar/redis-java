@@ -250,14 +250,15 @@ class CommandDispatcherTest {
     }
 
     @Test
-    void geoposReturnsCoordsPerMemberOrNullArray() {
-        send("GEOADD", "places", "-0.0884948", "51.506479", "London");
-        send("GEOADD", "places", "11.5030378", "48.164271", "Munich");
+    void geoposReturnsDecodedCoordsPerMemberOrNullArray() {
+        send("ZADD", "loc", "3663832614298053", "Foo");
 
-        assertEquals("*2\r\n*2\r\n$1\r\n0\r\n$1\r\n0\r\n*2\r\n$1\r\n0\r\n$1\r\n0\r\n",
-                send("GEOPOS", "places", "London", "Munich"));
-        assertEquals("*1\r\n*-1\r\n", send("GEOPOS", "places", "missing"));
-        assertEquals("*2\r\n*-1\r\n*-1\r\n", send("GEOPOS", "missing_key", "London", "Munich"));
+        String[] parts = send("GEOPOS", "loc", "Foo").split("\r\n");
+        assertEquals(2.2944715, Double.parseDouble(parts[3]), 1e-6); // longitude
+        assertEquals(48.8584625, Double.parseDouble(parts[5]), 1e-6); // latitude
+
+        assertEquals("*1\r\n*-1\r\n", send("GEOPOS", "loc", "missing"));
+        assertEquals("*2\r\n*-1\r\n*-1\r\n", send("GEOPOS", "missing_key", "a", "b"));
     }
 
     @Test
