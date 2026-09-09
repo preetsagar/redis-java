@@ -2,6 +2,7 @@ package io.codecrafters.redis.command;
 
 import io.codecrafters.redis.Main;
 import io.codecrafters.redis.ReplicationInfo;
+import io.codecrafters.redis.aof.Aof;
 import io.codecrafters.redis.client.ClientSession;
 import io.codecrafters.redis.rdb.Rdb;
 import io.codecrafters.redis.replication.Replicas;
@@ -30,7 +31,7 @@ class CommandDispatcherTest {
     @BeforeEach
     void setUp() {
         replicas = new Replicas();
-        dispatcher = new CommandDispatcher(new Database(), new ReplicationInfo("master"), replicas, new Rdb());
+        dispatcher = new CommandDispatcher(new Database(), new ReplicationInfo("master"), replicas, new Rdb(), Aof.disabled());
         session = dispatcher.newSession();
     }
 
@@ -83,7 +84,7 @@ class CommandDispatcherTest {
     void configGetReflectsAofFlagOverrides() {
         Main.getParsed().put("appendonly", "yes");
         Main.getParsed().put("appenddirname", "myaof");
-        CommandDispatcher d = new CommandDispatcher(new Database(), new ReplicationInfo("master"), new Replicas(), new Rdb());
+        CommandDispatcher d = new CommandDispatcher(new Database(), new ReplicationInfo("master"), new Replicas(), new Rdb(), Aof.disabled());
         ClientSession s = d.newSession();
 
         assertEquals("*2\r\n$10\r\nappendonly\r\n$3\r\nyes\r\n",

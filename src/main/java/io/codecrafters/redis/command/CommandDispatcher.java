@@ -1,6 +1,7 @@
 package io.codecrafters.redis.command;
 
 import io.codecrafters.redis.ReplicationInfo;
+import io.codecrafters.redis.aof.Aof;
 import io.codecrafters.redis.client.ClientSession;
 import io.codecrafters.redis.protocol.RespEncoder;
 import io.codecrafters.redis.rdb.Rdb;
@@ -27,12 +28,14 @@ public class CommandDispatcher {
     private final Replicas replicas;
     private final ReplicationInfo replication;
     private final Rdb redisDataBase;
+    private final Aof aof;
 
-    public CommandDispatcher(Database db, ReplicationInfo replication, Replicas replicas, Rdb redisDataBase) {
+    public CommandDispatcher(Database db, ReplicationInfo replication, Replicas replicas, Rdb redisDataBase, Aof aof) {
         this.db = db;
         this.replicas = replicas;
         this.replication = replication;
         this.redisDataBase = redisDataBase;
+        this.aof = aof;
         this.registry = new CommandRegistry(db, replication, replicas, redisDataBase);
     }
 
@@ -73,6 +76,7 @@ public class CommandDispatcher {
                 byte[] reply = command.execute(args);
                 if (WRITE_COMMANDS.contains(commandName)) {
                     byte[] writeCommand = RespEncoder.encodeList(args);
+                    aof.append(writeCommand); // before the reply — appendfsync always must be durable first
                     replicas.propagate(writeCommand);
                     replication.addReplOffset(writeCommand.length);
                 }

@@ -1,5 +1,6 @@
 package io.codecrafters.redis;
 
+import io.codecrafters.redis.aof.Aof;
 import io.codecrafters.redis.client.ClientHandler;
 import io.codecrafters.redis.command.CommandDispatcher;
 import io.codecrafters.redis.rdb.Rdb;
@@ -10,7 +11,6 @@ import io.codecrafters.redis.store.Database;
 
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static io.codecrafters.redis.Main.getParsed;
@@ -30,11 +30,8 @@ public class RedisServer {
         Database db = new Database();
         Rdb reddisDataBase = new Rdb(getParsed().get("dbfilename"), getParsed().get("dir"));
         RdbReader.loadInto(Path.of(reddisDataBase.getDir(), reddisDataBase.getDbFileName()), db.stringStore());
-        CommandDispatcher dispatcher = new CommandDispatcher(db, replication, new Replicas(), reddisDataBase);
-
-        if ("yes".equals(getParsed().get("appendonly"))) {
-            setUpAof(reddisDataBase.getDir());
-        }
+        Aof aof = Aof.open(getParsed(), reddisDataBase.getDir());
+        CommandDispatcher dispatcher = new CommandDispatcher(db, replication, new Replicas(), reddisDataBase, aof);
 
         if (replication.role().equals("slave")) {
             new ReplicationClient(
@@ -55,21 +52,6 @@ public class RedisServer {
             if (!serverSocket.isClosed()) {
                 System.out.println("Server error: " + e.getMessage());
             }
-        }
-    }
-
-    // Redis AOF startup layout: <dir>/<appenddirname>/ with an empty first
-    // incremental file and a manifest pointing at it. No persistence logic yet.
-    private void setUpAof(String dir) {
-        Path appendDir = Path.of(dir, getParsed().getOrDefault("appenddirname", "appendonlydir"));
-        String appendFile = getParsed().getOrDefault("appendfilename", "appendonly.aof");
-        try {
-            Files.createDirectories(appendDir); // no-op if it already exists
-            Files.write(appendDir.resolve(appendFile + ".1.incr.aof"), new byte[0]);
-            Files.writeString(appendDir.resolve(appendFile + ".manifest"),
-                    "file " + appendFile + ".1.incr.aof seq 1 type i\n");
-        } catch (IOException e) {
-            System.out.println("[aof] could not set up " + appendDir + ": " + e.getMessage());
         }
     }
 
