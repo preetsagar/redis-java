@@ -342,6 +342,11 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void aclGetuserReturnsFlagsWithAnEmptyArray() {
+        assertEquals("*2\r\n$5\r\nflags\r\n*0\r\n", send("ACL", "GETUSER", "default"));
+    }
+
+    @Test
     void infoRoutesToServerCommandAndRepliesWithABulkString() {
         String reply = send("INFO", "replication");
         assertTrue(reply.startsWith("$"), reply);

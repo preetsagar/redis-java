@@ -16,8 +16,12 @@ public class ServerCommands extends CommandGroup {
 
         add("REPLCONF", args -> RespEncoder.simpleString("OK"));
 
-        // ACL WHOAMI -> current user. ponytail: always "default" until auth lands.
-        add("ACL", args -> RespEncoder.bulkString("default"));
+        // ponytail: single hardcoded "default" user until auth lands
+        add("ACL", args -> switch (args.get(1).toUpperCase()) {
+            case "WHOAMI" -> RespEncoder.bulkString("default");
+            case "GETUSER" -> RespEncoder.array(RespEncoder.bulkString("flags"), RespEncoder.emptyArray());
+            default -> RespEncoder.error("unknown ACL subcommand '" + args.get(1) + "'");
+        });
 
         // +FULLRESYNC <replid> 0\r\n  immediately followed by  $<len>\r\n<rdb bytes>
         add("PSYNC", args -> RespEncoder.concat(
