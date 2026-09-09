@@ -172,6 +172,13 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void setbitReturnsThePreviousBitAtTheOffset() {
+        assertEquals(":0\r\n", send("SETBIT", "bm", "3", "1"));
+        assertEquals(":1\r\n", send("SETBIT", "bm", "3", "0"));
+        assertEquals(":0\r\n", send("SETBIT", "bm", "3", "1"));
+    }
+
+    @Test
     void zremRemovesAMemberAndReportsHowMany() {
         send("ZADD", "z", "80.5", "foo");
         send("ZADD", "z", "50.3", "baz");

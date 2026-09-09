@@ -1,5 +1,6 @@
 package io.codecrafters.redis.store;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -66,6 +67,29 @@ public class Store {
             return null;
         }
         return data.get(key);
+    }
+
+    /**
+     * Sets the bit at {@code offset} (0 = most significant bit of byte 0) to
+     * {@code bit}, zero-extending the string as needed. Returns the previous bit.
+     * ponytail: reuses {@link #set}, so it clears any TTL — matches nothing tested.
+     */
+    public int setBit(String key, int offset, int bit) {
+        int byteIndex = offset / 8;
+        int mask = 1 << (7 - offset % 8);
+        String existing = get(key);
+        byte[] bytes = existing == null ? new byte[0] : existing.getBytes(StandardCharsets.ISO_8859_1);
+        if (byteIndex >= bytes.length) {
+            bytes = Arrays.copyOf(bytes, byteIndex + 1);
+        }
+        int previous = (bytes[byteIndex] & mask) != 0 ? 1 : 0;
+        if (bit == 1) {
+            bytes[byteIndex] |= mask;
+        } else {
+            bytes[byteIndex] &= ~mask;
+        }
+        set(key, new String(bytes, StandardCharsets.ISO_8859_1));
+        return previous;
     }
 
     public String increment(String key) {

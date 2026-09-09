@@ -96,6 +96,28 @@ class StoreTest {
         assertThrows(NumberFormatException.class, () -> store.increment("counter"));
     }
 
+    // SETBIT
+
+    @Test
+    void setBitOnNewKeyReturnsZeroAndSetsTheMsbFirstBit() {
+        assertEquals(0, store.setBit("bm", 1, 1)); // offset 1 -> byte 0x40
+        assertEquals("@", store.get("bm"));        // 0x40 == '@'
+    }
+
+    @Test
+    void setBitReturnsThePreviousBit() {
+        store.setBit("bm", 3, 1);
+        assertEquals(1, store.setBit("bm", 3, 0));
+        assertEquals(0, store.setBit("bm", 3, 1));
+    }
+
+    @Test
+    void setBitZeroExtendsTheString() {
+        store.setBit("bm", 3, 1);
+        store.setBit("bm", 20, 1); // needs a 3rd byte
+        assertEquals(3, store.get("bm").length());
+    }
+
     // Key version tracking (used by WATCH/EXEC)
 
     @Test

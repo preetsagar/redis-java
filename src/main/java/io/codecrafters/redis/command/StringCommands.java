@@ -30,5 +30,9 @@ public class StringCommands extends CommandGroup {
                 return RespEncoder.error("value is not an integer or out of range");
             }
         });
+
+        // SETBIT key offset value -> the bit that was there before
+        add("SETBIT", args -> RespEncoder.respInteger(store.setBit(
+                args.get(1), Integer.parseInt(args.get(2)), Integer.parseInt(args.get(3)))));
     }
 }
