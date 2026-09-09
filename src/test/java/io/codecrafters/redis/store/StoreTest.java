@@ -132,6 +132,15 @@ class StoreTest {
         assertEquals(0, store.getBit("bm", 999));
     }
 
+    @Test
+    void strlenReportsByteLengthAndGrowsWithSetBit() {
+        assertEquals(0, store.strlen("bm"));
+        store.setBit("bm", 1, 1);
+        assertEquals(1, store.strlen("bm"));
+        store.setBit("bm", 10, 1); // second byte
+        assertEquals(2, store.strlen("bm"));
+    }
+
     // Key version tracking (used by WATCH/EXEC)
 
     @Test

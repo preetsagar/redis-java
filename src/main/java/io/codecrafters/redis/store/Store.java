@@ -106,6 +106,12 @@ public class Store {
         return (bytes[byteIndex] & (1 << (7 - offset % 8))) != 0 ? 1 : 0;
     }
 
+    /** Length of the string value in bytes; 0 if the key doesn't exist. */
+    public int strlen(String key) {
+        String value = get(key);
+        return value == null ? 0 : value.length();
+    }
+
     public String increment(String key) {
         String existing = get(key);
         int current = existing == null ? 0 : Integer.parseInt(existing);

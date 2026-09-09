@@ -187,6 +187,16 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void strlenTracksBitmapGrowth() {
+        send("SETBIT", "bm", "1", "1");
+        assertEquals(":1\r\n", send("STRLEN", "bm"));
+        assertEquals(":0\r\n", send("SETBIT", "bm", "10", "1"));
+        assertEquals(":1\r\n", send("GETBIT", "bm", "10"));
+        assertEquals(":2\r\n", send("STRLEN", "bm"));
+        assertEquals(":0\r\n", send("STRLEN", "missing"));
+    }
+
+    @Test
     void zremRemovesAMemberAndReportsHowMany() {
         send("ZADD", "z", "80.5", "foo");
         send("ZADD", "z", "50.3", "baz");

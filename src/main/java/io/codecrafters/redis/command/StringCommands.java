@@ -38,5 +38,8 @@ public class StringCommands extends CommandGroup {
         // GETBIT key offset -> the bit at that offset (0 if unset / key missing)
         add("GETBIT", args -> RespEncoder.respInteger(
                 store.getBit(args.get(1), Integer.parseInt(args.get(2)))));
+
+        // STRLEN key -> length of the string value in bytes (0 if missing)
+        add("STRLEN", args -> RespEncoder.respInteger(store.strlen(args.get(1))));
     }
 }
