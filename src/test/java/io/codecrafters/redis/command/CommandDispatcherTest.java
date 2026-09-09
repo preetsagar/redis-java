@@ -250,6 +250,17 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void geoposReturnsCoordsPerMemberOrNullArray() {
+        send("GEOADD", "places", "-0.0884948", "51.506479", "London");
+        send("GEOADD", "places", "11.5030378", "48.164271", "Munich");
+
+        assertEquals("*2\r\n*2\r\n$1\r\n0\r\n$1\r\n0\r\n*2\r\n$1\r\n0\r\n$1\r\n0\r\n",
+                send("GEOPOS", "places", "London", "Munich"));
+        assertEquals("*1\r\n*-1\r\n", send("GEOPOS", "places", "missing"));
+        assertEquals("*2\r\n*-1\r\n*-1\r\n", send("GEOPOS", "missing_key", "London", "Munich"));
+    }
+
+    @Test
     void geoaddRejectsOutOfRangeCoordinates() {
         String badLat = send("GEOADD", "places", "180", "90", "t1");
         assertTrue(badLat.startsWith("-ERR"), badLat);

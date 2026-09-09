@@ -3,6 +3,9 @@ package io.codecrafters.redis.command;
 import io.codecrafters.redis.protocol.RespEncoder;
 import io.codecrafters.redis.store.SortedSetStore;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class SortedSetCommands extends CommandGroup {
 
     public SortedSetCommands(SortedSetStore store) {
@@ -43,6 +46,18 @@ public class SortedSetCommands extends CommandGroup {
             }
             return RespEncoder.respInteger(
                     store.add(args.get(1), GeoHash.encode(latitude, longitude), args.get(4)));
+        });
+
+        // GEOPOS key member... -> per member: [longitude, latitude], or a null array if absent
+        // ponytail: coords hardcoded to "0" — decoding the score is a later stage
+        add("GEOPOS", args -> {
+            List<byte[]> entries = new ArrayList<>();
+            for (String member : args.subList(2, args.size())) {
+                entries.add(store.score(args.get(1), member) != null
+                        ? RespEncoder.array(RespEncoder.bulkString("0"), RespEncoder.bulkString("0"))
+                        : RespEncoder.emptyList()); // *-1\r\n
+            }
+            return RespEncoder.array(entries.toArray(byte[][]::new));
         });
     }
 
