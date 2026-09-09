@@ -26,6 +26,14 @@ public class SortedSetStore {
         }
     }
 
+    /** Number of members in the sorted set; 0 if the key doesn't exist. */
+    public int card(String key) {
+        synchronized (lock) {
+            Map<String, Double> set = data.get(key);
+            return set == null ? 0 : set.size();
+        }
+    }
+
     /** 0-based index of {@code member} ordered by (score asc, then member asc); null if absent. */
     public Integer rank(String key, String member) {
         synchronized (lock) {

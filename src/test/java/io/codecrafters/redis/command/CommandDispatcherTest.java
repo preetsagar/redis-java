@@ -147,6 +147,18 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void zcardCountsMembersAndIsZeroForMissingKey() {
+        send("ZADD", "z", "1.2", "one");
+        send("ZADD", "z", "2.2", "two");
+        assertEquals(":2\r\n", send("ZCARD", "z"));
+
+        send("ZADD", "z", "9.9", "one"); // score update, not a new member
+        assertEquals(":2\r\n", send("ZCARD", "z"));
+
+        assertEquals(":0\r\n", send("ZCARD", "missing"));
+    }
+
+    @Test
     void writeCommandsPropagateToReplicasVerbatimAndOthersDoNot() {
         java.io.ByteArrayOutputStream link = new java.io.ByteArrayOutputStream();
         replicas.register(link);

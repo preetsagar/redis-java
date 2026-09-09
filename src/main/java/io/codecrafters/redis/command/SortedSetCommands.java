@@ -19,5 +19,8 @@ public class SortedSetCommands extends CommandGroup {
         // ZRANGE key start stop -> members in rank order (inclusive), empty array if out of range
         add("ZRANGE", args -> RespEncoder.encodeList(
                 store.range(args.get(1), Integer.parseInt(args.get(2)), Integer.parseInt(args.get(3)))));
+
+        // ZCARD key -> number of members (0 if the set doesn't exist)
+        add("ZCARD", args -> RespEncoder.respInteger(store.card(args.get(1))));
     }
 }
