@@ -44,7 +44,8 @@ public class SortedSetCommands extends CommandGroup {
                     || latitude < -LATITUDE_LIMIT || latitude > LATITUDE_LIMIT) {
                 return RespEncoder.error("invalid longitude,latitude pair " + longitude + "," + latitude);
             }
-            return RespEncoder.respInteger(1);
+            // ponytail: score hardcoded to 0 — geohash scoring is a later stage
+            return RespEncoder.respInteger(store.add(args.get(1), 0.0, args.get(4)));
         });
     }
 
