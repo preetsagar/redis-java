@@ -129,6 +129,34 @@ public class Store {
         return count;
     }
 
+    /**
+     * Bitwise {@code AND} or {@code OR} of the source bitmaps, stored at
+     * {@code dest}. Result length is the longest source (shorter sources are
+     * zero-padded). Returns the result length in bytes.
+     */
+    public int bitop(String op, String dest, List<String> sourceKeys) {
+        boolean and = op.equalsIgnoreCase("AND");
+        byte[][] sources = sourceKeys.stream()
+                .map(k -> { String v = get(k); return v == null ? new byte[0] : v.getBytes(StandardCharsets.ISO_8859_1); })
+                .toArray(byte[][]::new);
+
+        int length = 0;
+        for (byte[] s : sources) {
+            length = Math.max(length, s.length);
+        }
+        byte[] result = new byte[length];
+        for (int i = 0; i < length; i++) {
+            int acc = and ? 0xFF : 0x00;
+            for (byte[] s : sources) {
+                int b = i < s.length ? s[i] & 0xFF : 0;
+                acc = and ? acc & b : acc | b;
+            }
+            result[i] = (byte) acc;
+        }
+        set(dest, new String(result, StandardCharsets.ISO_8859_1));
+        return length;
+    }
+
     /** Length of the string value in bytes; 0 if the key doesn't exist. */
     public int strlen(String key) {
         String value = get(key);

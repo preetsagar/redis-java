@@ -48,5 +48,9 @@ public class StringCommands extends CommandGroup {
             int end = args.size() >= 4 ? Integer.parseInt(args.get(3)) : Integer.MAX_VALUE;
             return RespEncoder.respInteger(store.bitCount(args.get(1), start, end));
         });
+
+        // BITOP <AND|OR> dest src... -> length of the destination in bytes
+        add("BITOP", args -> RespEncoder.respInteger(
+                store.bitop(args.get(1), args.get(2), args.subList(3, args.size()))));
     }
 }

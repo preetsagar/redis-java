@@ -142,6 +142,29 @@ class StoreTest {
     }
 
     @Test
+    void bitopAndStoresTheIntersectionAndReturnsLength() {
+        store.setBit("k1", 0, 1);
+        store.setBit("k1", 4, 1); // 10001000
+        store.setBit("k2", 0, 1);
+        store.setBit("k2", 6, 1); // 10000010
+
+        assertEquals(1, store.bitop("AND", "dest", java.util.List.of("k1", "k2")));
+        assertEquals(1, store.getBit("dest", 0));
+        assertEquals(0, store.getBit("dest", 4));
+        assertEquals(0, store.getBit("dest", 6));
+    }
+
+    @Test
+    void bitopOrStoresTheUnion() {
+        store.setBit("k1", 0, 1);
+        store.setBit("k2", 6, 1);
+
+        store.bitop("OR", "dest", java.util.List.of("k1", "k2"));
+        assertEquals(1, store.getBit("dest", 0));
+        assertEquals(1, store.getBit("dest", 6));
+    }
+
+    @Test
     void bitCountCountsSetBitsWholeStringAndByteRanges() {
         store.setBit("bm", 1, 1);
         store.setBit("bm", 10, 1); // 01000000 00100000

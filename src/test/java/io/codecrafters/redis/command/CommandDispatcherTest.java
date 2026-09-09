@@ -209,6 +209,18 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void bitopAndCombinesBitmapsAndReturnsDestLength() {
+        send("SETBIT", "k1", "0", "1");
+        send("SETBIT", "k1", "4", "1");
+        send("SETBIT", "k2", "0", "1");
+        send("SETBIT", "k2", "6", "1");
+
+        assertEquals(":1\r\n", send("BITOP", "AND", "dest", "k1", "k2"));
+        assertEquals(":1\r\n", send("GETBIT", "dest", "0"));
+        assertEquals(":0\r\n", send("GETBIT", "dest", "4"));
+    }
+
+    @Test
     void zremRemovesAMemberAndReportsHowMany() {
         send("ZADD", "z", "80.5", "foo");
         send("ZADD", "z", "50.3", "baz");
