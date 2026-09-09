@@ -35,10 +35,12 @@ public class RedisServer {
         if ("yes".equals(getParsed().get("appendonly"))) {
             Path appendDir = Path.of(reddisDataBase.getDir(),
                     getParsed().getOrDefault("appenddirname", "appendonlydir"));
+            String appendFile = getParsed().getOrDefault("appendfilename", "appendonly.aof");
             try {
                 Files.createDirectories(appendDir); // no-op if it already exists
+                Files.write(appendDir.resolve(appendFile + ".1.incr.aof"), new byte[0]);
             } catch (IOException e) {
-                System.out.println("[aof] could not create " + appendDir + ": " + e.getMessage());
+                System.out.println("[aof] could not set up " + appendDir + ": " + e.getMessage());
             }
         }
 

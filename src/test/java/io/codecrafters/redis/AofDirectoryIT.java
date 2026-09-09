@@ -27,18 +27,23 @@ class AofDirectoryIT {
         if (server != null) {
             server.stop();
         }
-        Main.getParsed().keySet().removeAll(java.util.List.of("dir", "appendonly", "appenddirname"));
+        Main.getParsed().keySet().removeAll(
+                java.util.List.of("dir", "appendonly", "appenddirname", "appendfilename"));
     }
 
     @Test
-    void appendOnlyDirIsCreatedAtStartup() throws Exception {
+    void appendOnlyDirAndFileAreCreatedAtStartup() throws Exception {
         Main.getParsed().put("dir", dir.toString());
         Main.getParsed().put("appendonly", "yes");
         Main.getParsed().put("appenddirname", "myaof");
+        Main.getParsed().put("appendfilename", "custom.aof");
 
         startServer();
 
+        Path aofFile = dir.resolve("myaof").resolve("custom.aof.1.incr.aof");
         assertTrue(Files.isDirectory(dir.resolve("myaof")), "startup should have created <dir>/myaof");
+        assertTrue(Files.isRegularFile(aofFile), "startup should have created the .1.incr.aof file");
+        assertEquals(0, Files.size(aofFile), "the AOF file should be empty");
     }
 
     @Test
