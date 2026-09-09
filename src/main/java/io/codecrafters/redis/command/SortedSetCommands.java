@@ -36,7 +36,18 @@ public class SortedSetCommands extends CommandGroup {
         });
 
         // GEOADD key longitude latitude member -> count added
-        // ponytail: stubbed to 1 — arg validation and geohash-scored storage are later stages
-        add("GEOADD", args -> RespEncoder.respInteger(1));
+        // ponytail: geohash-scored storage is a later stage; here just validate the coords
+        add("GEOADD", args -> {
+            double longitude = Double.parseDouble(args.get(2));
+            double latitude = Double.parseDouble(args.get(3));
+            if (longitude < -180 || longitude > 180
+                    || latitude < -LATITUDE_LIMIT || latitude > LATITUDE_LIMIT) {
+                return RespEncoder.error("invalid longitude,latitude pair " + longitude + "," + latitude);
+            }
+            return RespEncoder.respInteger(1);
+        });
     }
+
+    // Web Mercator (EPSG:3857) clips latitude here rather than at +/-90.
+    private static final double LATITUDE_LIMIT = 85.05112878;
 }

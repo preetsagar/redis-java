@@ -239,6 +239,18 @@ class CommandDispatcherTest {
     @Test
     void geoaddRespondsWithTheCountAdded() {
         assertEquals(":1\r\n", send("GEOADD", "places", "11.5030378", "48.164271", "Munich"));
+        assertEquals(":1\r\n", send("GEOADD", "places", "-180", "-85.05112878", "edge")); // limits inclusive
+    }
+
+    @Test
+    void geoaddRejectsOutOfRangeCoordinates() {
+        String badLat = send("GEOADD", "places", "180", "90", "t1");
+        assertTrue(badLat.startsWith("-ERR"), badLat);
+        assertTrue(badLat.contains("latitude"), badLat);
+
+        String badLon = send("GEOADD", "places", "181", "0.3", "t2");
+        assertTrue(badLon.startsWith("-ERR"), badLon);
+        assertTrue(badLon.contains("longitude"), badLon);
     }
 
     @Test
