@@ -34,5 +34,9 @@ public class SortedSetCommands extends CommandGroup {
             return score != null ? RespEncoder.bulkString(Double.toString(score))
                     : RespEncoder.nullBulkString();
         });
+
+        // GEOADD key longitude latitude member -> count added
+        // ponytail: stubbed to 1 — arg validation and geohash-scored storage are later stages
+        add("GEOADD", args -> RespEncoder.respInteger(1));
     }
 }

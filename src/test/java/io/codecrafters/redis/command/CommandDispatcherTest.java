@@ -237,6 +237,11 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void geoaddRespondsWithTheCountAdded() {
+        assertEquals(":1\r\n", send("GEOADD", "places", "11.5030378", "48.164271", "Munich"));
+    }
+
+    @Test
     void zremRemovesAMemberAndReportsHowMany() {
         send("ZADD", "z", "80.5", "foo");
         send("ZADD", "z", "50.3", "baz");
