@@ -24,4 +24,13 @@ class GeoHashTest {
         assertEquals(2.2944715, pos[0], 1e-6);
         assertEquals(48.8584625, pos[1], 1e-6);
     }
+
+    @Test
+    void distanceMunichToParisMatchesRedis() {
+        // decoded from the scores GEOADD stores for these coords
+        double[] munich = GeoHash.decode(GeoHash.encode(48.164271, 11.5030378));
+        double[] paris = GeoHash.decode(GeoHash.encode(48.8584625, 2.2944692));
+        double metres = GeoHash.distance(munich[1], munich[0], paris[1], paris[0]);
+        assertEquals(682477.7582, metres, 1e-3);
+    }
 }

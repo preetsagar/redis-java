@@ -262,6 +262,16 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void geodistReturnsMetresBetweenTwoMembers() {
+        send("GEOADD", "places", "11.5030378", "48.164271", "Munich");
+        send("GEOADD", "places", "2.2944692", "48.8584625", "Paris");
+
+        String reply = send("GEODIST", "places", "Munich", "Paris");
+        assertEquals(682477.7582, Double.parseDouble(reply.split("\r\n")[1]), 1e-3);
+        assertEquals("$-1\r\n", send("GEODIST", "places", "Munich", "missing"));
+    }
+
+    @Test
     void geoaddRejectsOutOfRangeCoordinates() {
         String badLat = send("GEOADD", "places", "180", "90", "t1");
         assertTrue(badLat.startsWith("-ERR"), badLat);

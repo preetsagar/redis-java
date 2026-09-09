@@ -13,8 +13,19 @@ final class GeoHash {
     private static final double LATITUDE_RANGE = MAX_LATITUDE - MIN_LATITUDE;
     private static final double LONGITUDE_RANGE = MAX_LONGITUDE - MIN_LONGITUDE;
     private static final double GRID = Math.pow(2, 26);
+    private static final double EARTH_RADIUS_M = 6372797.560856; // the exact value Redis uses
 
     private GeoHash() {
+    }
+
+    /** Haversine great-circle distance between two lat/lon points, in metres. */
+    static double distance(double lat1, double lon1, double lat2, double lon2) {
+        double lat1r = Math.toRadians(lat1);
+        double lat2r = Math.toRadians(lat2);
+        double u = Math.sin((lat2r - lat1r) / 2);
+        double v = Math.sin(Math.toRadians(lon2 - lon1) / 2);
+        double a = u * u + Math.cos(lat1r) * Math.cos(lat2r) * v * v;
+        return 2.0 * EARTH_RADIUS_M * Math.asin(Math.sqrt(a));
     }
 
     static long encode(double latitude, double longitude) {

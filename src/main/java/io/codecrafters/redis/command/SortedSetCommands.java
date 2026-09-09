@@ -5,6 +5,7 @@ import io.codecrafters.redis.store.SortedSetStore;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class SortedSetCommands extends CommandGroup {
 
@@ -64,6 +65,19 @@ public class SortedSetCommands extends CommandGroup {
                         RespEncoder.bulkString(Double.toString(pos[1]))));
             }
             return RespEncoder.array(entries.toArray(byte[][]::new));
+        });
+
+        // GEODIST key member1 member2 -> distance in metres (bulk string), null if either is absent
+        add("GEODIST", args -> {
+            Double s1 = store.score(args.get(1), args.get(2));
+            Double s2 = store.score(args.get(1), args.get(3));
+            if (s1 == null || s2 == null) {
+                return RespEncoder.nullBulkString();
+            }
+            double[] a = GeoHash.decode((long) (double) s1); // [lon, lat]
+            double[] b = GeoHash.decode((long) (double) s2);
+            double metres = GeoHash.distance(a[1], a[0], b[1], b[0]);
+            return RespEncoder.bulkString(String.format(Locale.ROOT, "%.4f", metres));
         });
     }
 
