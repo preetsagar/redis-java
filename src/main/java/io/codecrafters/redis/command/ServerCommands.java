@@ -1,5 +1,6 @@
 package io.codecrafters.redis.command;
 
+import io.codecrafters.redis.DefaultUser;
 import io.codecrafters.redis.ReplicationInfo;
 import io.codecrafters.redis.protocol.RespEncoder;
 import io.codecrafters.redis.rdb.Rdb;
@@ -7,7 +8,7 @@ import io.codecrafters.redis.replication.Replicas;
 
 public class ServerCommands extends CommandGroup {
 
-    public ServerCommands(ReplicationInfo replicationInfo, Replicas replicas) {
+    public ServerCommands(ReplicationInfo replicationInfo, Replicas replicas, DefaultUser user) {
         add("INFO", args -> RespEncoder.multiBulkString(
                 "role:" + replicationInfo.role(),
                 "connected_slaves:" + replicas.count(),
@@ -16,12 +17,26 @@ public class ServerCommands extends CommandGroup {
 
         add("REPLCONF", args -> RespEncoder.simpleString("OK"));
 
-        // ponytail: single hardcoded "default" user until auth lands
+        // ponytail: single "default" user; auth enforcement lands later
         add("ACL", args -> switch (args.get(1).toUpperCase()) {
             case "WHOAMI" -> RespEncoder.bulkString("default");
-            case "GETUSER" -> RespEncoder.array(
-                    RespEncoder.bulkString("flags"), RespEncoder.array(RespEncoder.bulkString("nopass")),
-                    RespEncoder.bulkString("passwords"), RespEncoder.emptyArray());
+            case "SETUSER" -> {
+                for (String rule : args.subList(3, args.size())) {
+                    if (rule.startsWith(">")) {
+                        user.addPassword(rule.substring(1));
+                    }
+                }
+                yield RespEncoder.simpleString("OK");
+            }
+            case "GETUSER" -> {
+                byte[] flags = user.nopass()
+                        ? RespEncoder.array(RespEncoder.bulkString("nopass"))
+                        : RespEncoder.emptyArray();
+                byte[] passwords = RespEncoder.array(user.passwordHashes().stream()
+                        .map(RespEncoder::bulkString).toArray(byte[][]::new));
+                yield RespEncoder.array(RespEncoder.bulkString("flags"), flags,
+                        RespEncoder.bulkString("passwords"), passwords);
+            }
             default -> RespEncoder.error("unknown ACL subcommand '" + args.get(1) + "'");
         });
 

@@ -1,5 +1,6 @@
 package io.codecrafters.redis.command;
 
+import io.codecrafters.redis.DefaultUser;
 import io.codecrafters.redis.ReplicationInfo;
 import io.codecrafters.redis.aof.Aof;
 import io.codecrafters.redis.client.ClientSession;
@@ -37,14 +38,14 @@ public class CommandDispatcher {
     private final PubSub pubSub;
 
     public CommandDispatcher(Database db, ReplicationInfo replication, Replicas replicas,
-                             Rdb redisDataBase, Aof aof, PubSub pubSub) {
+                             Rdb redisDataBase, Aof aof, PubSub pubSub, DefaultUser user) {
         this.db = db;
         this.replicas = replicas;
         this.replication = replication;
         this.redisDataBase = redisDataBase;
         this.aof = aof;
         this.pubSub = pubSub;
-        this.registry = new CommandRegistry(db, replication, replicas, redisDataBase);
+        this.registry = new CommandRegistry(db, replication, replicas, redisDataBase, user);
     }
 
     /** A fresh session for a newly connected client; {@code connection} is where

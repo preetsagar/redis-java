@@ -2,6 +2,7 @@ package io.codecrafters.redis.command;
 
 import io.codecrafters.redis.Main;
 import io.codecrafters.redis.ReplicationInfo;
+import io.codecrafters.redis.DefaultUser;
 import io.codecrafters.redis.aof.Aof;
 import io.codecrafters.redis.pubsub.PubSub;
 import io.codecrafters.redis.client.ClientSession;
@@ -32,7 +33,7 @@ class CommandDispatcherTest {
     @BeforeEach
     void setUp() {
         replicas = new Replicas();
-        dispatcher = new CommandDispatcher(new Database(), new ReplicationInfo("master"), replicas, new Rdb(), Aof.disabled(), new PubSub());
+        dispatcher = new CommandDispatcher(new Database(), new ReplicationInfo("master"), replicas, new Rdb(), Aof.disabled(), new PubSub(), new DefaultUser());
         session = dispatcher.newSession();
     }
 
@@ -85,7 +86,7 @@ class CommandDispatcherTest {
     void configGetReflectsAofFlagOverrides() {
         Main.getParsed().put("appendonly", "yes");
         Main.getParsed().put("appenddirname", "myaof");
-        CommandDispatcher d = new CommandDispatcher(new Database(), new ReplicationInfo("master"), new Replicas(), new Rdb(), Aof.disabled(), new PubSub());
+        CommandDispatcher d = new CommandDispatcher(new Database(), new ReplicationInfo("master"), new Replicas(), new Rdb(), Aof.disabled(), new PubSub(), new DefaultUser());
         ClientSession s = d.newSession();
 
         assertEquals("*2\r\n$10\r\nappendonly\r\n$3\r\nyes\r\n",
@@ -344,6 +345,14 @@ class CommandDispatcherTest {
     @Test
     void aclGetuserReturnsFlagsAndPasswords() {
         assertEquals("*4\r\n$5\r\nflags\r\n*1\r\n$6\r\nnopass\r\n$9\r\npasswords\r\n*0\r\n",
+                send("ACL", "GETUSER", "default"));
+    }
+
+    @Test
+    void aclSetuserStoresThePasswordHashAndClearsNopass() {
+        assertEquals("+OK\r\n", send("ACL", "SETUSER", "default", ">mypassword"));
+        assertEquals("*4\r\n$5\r\nflags\r\n*0\r\n$9\r\npasswords\r\n"
+                        + "*1\r\n$64\r\n89e01536ac207279409d4de1e5253e01f4a1769e696db0d6062ca9b8f56767c8\r\n",
                 send("ACL", "GETUSER", "default"));
     }
 
