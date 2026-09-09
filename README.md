@@ -2,9 +2,16 @@
 
 # Redis Server — Java Implementation
 
-A Redis-compatible server built from scratch in Java, implementing the RESP (Redis Serialization Protocol) and 20+ Redis commands including blocking operations, streams, and transactions.
+A Redis-compatible server built from scratch in Java: the RESP protocol, 50+
+commands, master–replica replication, RDB + append-only-file persistence,
+pub/sub, transactions with optimistic locking, sorted sets, bitmaps, geospatial
+queries, and ACL authentication.
 
 Built as part of the [CodeCrafters "Build Your Own Redis" Challenge](https://codecrafters.io/challenges/redis).
+
+- **[`docs/revision.md`](docs/revision.md)** — subsystem-by-subsystem walkthrough of what was built and why (bugs, trade-offs)
+- **[`docs/interview-prep.md`](docs/interview-prep.md)** — drill sheet: the pitch, per-subsystem soundbites, likely deep-dive Q&A
+- **[`docs/architecture.md`](docs/architecture.md)** — component ownership, threading, sequence diagrams
 
 ---
 
@@ -20,20 +27,29 @@ Built as part of the [CodeCrafters "Build Your Own Redis" Challenge](https://cod
 |---------------|----------|
 | Basic         | `PING`, `ECHO` |
 | Strings       | `SET` (EX/PX), `GET`, `INCR` |
-| Keys          | `TYPE` |
+| Keys          | `TYPE`, `KEYS` |
 | Lists         | `RPUSH`, `LPUSH`, `LRANGE`, `LLEN`, `LPOP` (with count), `BLPOP` |
-| Streams       | `XADD`, `XRANGE`, `XREAD` |
+| Streams       | `XADD`, `XRANGE`, `XREAD` (multi-stream, `BLOCK`, `$`) |
 | Transactions  | `MULTI`, `EXEC`, `DISCARD`, `WATCH`, `UNWATCH` |
+| Sorted sets   | `ZADD`, `ZRANK`, `ZRANGE`, `ZCARD`, `ZSCORE`, `ZREM` |
+| Geospatial    | `GEOADD`, `GEOPOS`, `GEODIST`, `GEOSEARCH` |
+| Bitmaps       | `SETBIT`, `GETBIT`, `BITCOUNT`, `BITOP` (AND/OR), `STRLEN` |
+| Pub/Sub       | `SUBSCRIBE`, `UNSUBSCRIBE`, `PUBLISH` |
+| Replication   | `REPLCONF`, `PSYNC`, `WAIT`, `INFO replication` |
+| Persistence   | `CONFIG GET` |
+| ACL / Auth    | `AUTH`, `ACL WHOAMI`, `ACL GETUSER`, `ACL SETUSER` |
 
 ### Highlights
 
-- **Blocking operations** — `BLPOP` and `XREAD BLOCK` use `wait()`/`notifyAll()` to block the client thread until data arrives or timeout expires, without busy-waiting
-- **Redis Streams** — `XADD` validates entry IDs (must be strictly increasing), supports explicit IDs, partial wildcards (`<ms>-*`), and full auto-generation (`*`); `XRANGE` supports `-`/`+` bounds; `XREAD` supports multiple streams and blocking with `$`
-- **Transactions** — `MULTI`/`EXEC` queues commands per-connection, executes them atomically on `EXEC`; errors in individual commands don't abort the transaction; `DISCARD` clears the queue
-- **Optimistic locking** — `WATCH` snapshots a monotonic per-key version counter; `EXEC` aborts (returns nil) if any watched key was modified by another connection since the `WATCH`. No callbacks or locks — the check reads a `ConcurrentHashMap` on the transaction's own thread
-- **Command dispatch** — commands are registered by name into a `CommandRegistry` (one `CommandGroup` per category); `CommandDispatcher` owns the connection-scoped verbs (`MULTI`/`EXEC`/`WATCH`/…) and routes everything else through the registry
-- **TTL support** — `SET` with `EX` (seconds) or `PX` (milliseconds); expired keys are lazily evicted on `GET`
-- **Thread-per-client concurrency** — each client connection runs in its own thread; shared stores are protected with `synchronized` monitors
+- **Replication** — full `PING`/`REPLCONF`/`PSYNC` handshake, `+FULLRESYNC` + empty-RDB transfer, live command propagation to replicas, and `WAIT` that blocks on a monitor until enough replicas ACK a target offset. Replica-side offset is tracked byte-for-byte over the post-RDB command stream via a counting input stream
+- **Persistence** — loads string keys (with expiries) from an RDB file on startup; append-only-file with manifest handling, `appendfsync always` (fsync before ack), and replay-on-startup that reuses the live dispatch path under a `replaying` flag so it stays idempotent
+- **Pub/Sub** — cross-thread message delivery: `PUBLISH` writes to each subscriber's socket from the publisher's thread, guarded by the same monitor the subscriber's own handler uses; subscribed-mode command restrictions
+- **Optimistic locking** — `WATCH` snapshots a monotonic per-key version counter; `EXEC` aborts (returns nil) if any watched key changed. No callbacks or locks — the check reads a `ConcurrentHashMap` on the transaction's own thread
+- **Blocking operations** — `BLPOP` and `XREAD BLOCK` use `wait()`/`notifyAll()` on the monitor that guards the store — no busy-wait
+- **Geospatial** — 52-bit interleaved geohash as the sorted-set score (matches real Redis byte-for-byte), haversine distance with Redis's earth-radius constant
+- **ACL auth** — SHA-256 password hashes; the per-connection auth requirement is snapshotted at connect time from the user's `nopass` flag, so setting a password locks out new clients without dropping existing ones
+- **Command dispatch** — stateless handlers registered by name in a `CommandRegistry` (one `CommandGroup` per category); `CommandDispatcher` owns only the connection-scoped verbs (`MULTI`/`EXEC`/`WATCH`/`SUBSCRIBE`/`AUTH`…)
+- **Concurrency** — thread-per-connection; per-connection state needs no locking, shared stores serialize internally
 
 ---
 
@@ -41,32 +57,52 @@ Built as part of the [CodeCrafters "Build Your Own Redis" Challenge](https://cod
 
 ```
 src/main/java/io/codecrafters/redis/
-├── Main.java                   # Entry point
-├── RedisServer.java            # ServerSocket accept loop; builds Database + CommandDispatcher
+├── Main.java                   # Entry point; arg parsing
+├── RedisServer.java            # Builds shared services, loads RDB, replays AOF, accept loop
+├── ReplicationInfo.java        # role / replid / master_repl_offset (one per server)
+├── DefaultUser.java            # ACL: nopass flag + SHA-256 password hashes
 ├── client/
 │   ├── ClientHandler.java      # Per-connection read → dispatch → write loop
-│   └── ClientSession.java      # Per-connection state: MULTI flag, queued commands, WATCH snapshots
+│   └── ClientSession.java      # Per-connection state: MULTI, queue, WATCH, channels, auth
 ├── command/
 │   ├── Command.java            # byte[] execute(List<String> args)
-│   ├── CommandGroup.java       # Base class for a group of related command handlers
+│   ├── CommandGroup.java       # Base class: add(name, handler)
 │   ├── CommandRegistry.java    # name → Command lookup, assembled from the groups
-│   ├── CommandDispatcher.java  # MULTI/EXEC/DISCARD/WATCH/UNWATCH + queueing; routes the rest
+│   ├── CommandDispatcher.java  # connection-scoped verbs (MULTI/EXEC/WATCH/SUBSCRIBE/AUTH) + routing + write propagation
 │   ├── ConnectionCommands.java # PING, ECHO
-│   ├── StringCommands.java     # SET, GET, INCR
+│   ├── StringCommands.java     # SET, GET, INCR, SETBIT, GETBIT, STRLEN, BITCOUNT, BITOP
 │   ├── ListCommands.java       # RPUSH, LPUSH, LRANGE, LLEN, LPOP, BLPOP
 │   ├── StreamCommands.java     # XADD, XRANGE, XREAD
-│   └── KeyCommands.java        # TYPE
+│   ├── SortedSetCommands.java  # ZADD/ZRANK/ZRANGE/ZCARD/ZSCORE/ZREM + GEOADD/GEOPOS/GEODIST/GEOSEARCH
+│   ├── GeoHash.java            # 52-bit interleaved geohash encode/decode + haversine
+│   ├── KeyCommands.java        # TYPE, KEYS
+│   ├── ServerCommands.java     # INFO, REPLCONF, PSYNC, WAIT, ACL
+│   └── RDBPersistenceCommands.java  # CONFIG GET
 ├── protocol/
 │   ├── RespParser.java         # Parses incoming RESP commands
-│   └── RespEncoder.java        # Encodes responses to RESP bytes
-└── store/
-    ├── Database.java           # Bundles the three keyspaces behind one handle
-    ├── Store.java              # String key-value store with TTL + per-key version counters
-    ├── ListStore.java          # List store with blocking pop support
-    └── StreamStore.java        # Stream store with ID validation and blocking read
+│   └── RespEncoder.java        # Encodes every RESP reply type to bytes
+├── store/
+│   ├── Database.java           # Bundles the four keyspaces behind one handle
+│   ├── Store.java              # Strings + bitmaps; TTL + per-key version counters
+│   ├── ListStore.java          # Lists with blocking pop
+│   ├── StreamStore.java        # Streams: ID validation + blocking read
+│   └── SortedSetStore.java     # member → score, ordered on read
+├── replication/
+│   ├── ReplicationClient.java  # Replica side: handshake, RDB, apply master's stream (daemon thread)
+│   └── Replicas.java           # Master side: replica links, propagate(), waitForAcks()
+├── pubsub/
+│   └── PubSub.java             # channel → subscribers; publish()
+├── rdb/
+│   ├── Rdb.java                # dir / dbfilename config; empty-RDB bytes
+│   └── RdbReader.java          # Minimal RDB file parser (startup load)
+└── aof/
+    └── Aof.java                # Append-only file: open/append/replay, manifest handling
 ```
 
-More detail — including sequence diagrams for a plain command and for `WATCH`/`MULTI`/`EXEC` — is in [`docs/architecture.md`](docs/architecture.md).
+More detail — component ownership, threading table, and sequence diagrams for a
+plain command, `WATCH`/`MULTI`/`EXEC`, and replication — is in
+[`docs/architecture.md`](docs/architecture.md). The build-order walkthrough with
+rationale and bugs is in [`docs/revision.md`](docs/revision.md).
 
 ---
 
@@ -77,6 +113,12 @@ More detail — including sequence diagrams for a plain command and for `WATCH`/
 ```sh
 # Run the server (listens on port 6379)
 ./your_program.sh
+
+# With flags
+./your_program.sh --port 6380
+./your_program.sh --replicaof "localhost 6379"                       # run as a replica
+./your_program.sh --dir /tmp/redis --dbfilename dump.rdb             # load an RDB on startup
+./your_program.sh --appendonly yes --appendfsync always             # append-only-file persistence
 ```
 
 Open a second terminal and send commands using `nc` (netcat — available on macOS by default):
@@ -119,8 +161,8 @@ mvn test
 ```
 
 Tests are split into:
-- **Unit tests** (`*Test`) — `StoreTest`, `ListStoreTest`, `StreamStoreTest`, `RespParserTest`, `RespEncoderTest`, and `CommandDispatcherTest` (drives the dispatcher directly, no sockets — covers the MULTI/EXEC/WATCH logic)
-- **Integration tests** (`*IT`) — one class per command category (`ConnectionCommandsIT`, `StringCommandsIT`, `ListCommandsIT`, `StreamCommandsIT`, `KeyCommandsIT`, `TransactionIT`, `WatchIT`), each extending `RedisServerTestBase`, which starts a real server on port 6379 and talks to it over TCP
+- **Unit tests** (`*Test`, socket-free) — `CommandDispatcherTest` (the big one: dispatch, transactions, pub/sub, sorted sets, bitmaps, geo, ACL — all without a socket), plus `RespParserTest`, `RespEncoderTest`, `StoreTest`, `ListStoreTest`, `StreamStoreTest`, `SortedSetStoreTest`, `GeoHashTest`, `RdbReaderTest`
+- **Integration tests** (`*IT`, real TCP) — one class per area, each extending `RedisServerTestBase`: `ConnectionCommandsIT`, `StringCommandsIT`, `ListCommandsIT`, `StreamCommandsIT`, `KeyCommandsIT`, `ServerCommandsIT`, `TransactionIT`, `WatchIT`, `PubSubDeliveryIT`, `AofDirectoryIT`, `KeyspaceFromRdbIT`, `ReplicationHandshakeIT`, `MasterReplicaIT`
 
 Surefire is configured to run both `*Test` and `*IT` in `mvn test`.
 
