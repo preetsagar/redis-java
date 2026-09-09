@@ -221,6 +221,22 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void bitopOrUnionsBitmapsIncludingDifferentLengths() {
+        send("SETBIT", "k1", "0", "1");
+        send("SETBIT", "k1", "4", "1");
+        send("SETBIT", "k2", "0", "1");
+        send("SETBIT", "k2", "6", "1");
+        assertEquals(":1\r\n", send("BITOP", "OR", "dest", "k1", "k2"));
+        assertEquals(":1\r\n", send("GETBIT", "dest", "4"));
+
+        send("SETBIT", "k3", "1", "1");
+        send("SETBIT", "k3", "10", "1"); // 2 bytes
+        send("SETBIT", "k4", "1", "1");  // 1 byte
+        assertEquals(":2\r\n", send("BITOP", "OR", "dest2", "k3", "k4"));
+        assertEquals(":1\r\n", send("GETBIT", "dest2", "10"));
+    }
+
+    @Test
     void zremRemovesAMemberAndReportsHowMany() {
         send("ZADD", "z", "80.5", "foo");
         send("ZADD", "z", "50.3", "baz");

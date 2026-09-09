@@ -165,6 +165,17 @@ class StoreTest {
     }
 
     @Test
+    void bitopOrZeroPadsShorterSourcesToTheLongest() {
+        store.setBit("k3", 1, 1);
+        store.setBit("k3", 10, 1); // 2 bytes
+        store.setBit("k4", 1, 1);  // 1 byte
+
+        assertEquals(2, store.bitop("OR", "dest2", java.util.List.of("k3", "k4")));
+        assertEquals(1, store.getBit("dest2", 1));
+        assertEquals(1, store.getBit("dest2", 10)); // past k4's end, from k3
+    }
+
+    @Test
     void bitCountCountsSetBitsWholeStringAndByteRanges() {
         store.setBit("bm", 1, 1);
         store.setBit("bm", 10, 1); // 01000000 00100000
