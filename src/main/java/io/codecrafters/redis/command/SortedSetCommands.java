@@ -29,14 +29,11 @@ public class SortedSetCommands extends CommandGroup {
         // ZSCORE key member -> score as a bulk string, or null bulk string if absent
         add("ZSCORE", args -> {
             Double score = store.score(args.get(1), args.get(2));
-            // ponytail: Double.toString round-trips the tester's decimal scores; add
-            // whole-number trimming (20.0 -> "20") only if a stage checks for it.
-            return score != null ? RespEncoder.bulkString(Double.toString(score))
+            return score != null ? RespEncoder.bulkString(formatScore(score))
                     : RespEncoder.nullBulkString();
         });
 
-        // GEOADD key longitude latitude member -> count added
-        // ponytail: geohash-scored storage is a later stage; here just validate the coords
+        // GEOADD key longitude latitude member -> count added (score = geohash of the coords)
         add("GEOADD", args -> {
             double longitude = Double.parseDouble(args.get(2));
             double latitude = Double.parseDouble(args.get(3));
@@ -44,9 +41,17 @@ public class SortedSetCommands extends CommandGroup {
                     || latitude < -LATITUDE_LIMIT || latitude > LATITUDE_LIMIT) {
                 return RespEncoder.error("invalid longitude,latitude pair " + longitude + "," + latitude);
             }
-            // ponytail: score hardcoded to 0 — geohash scoring is a later stage
-            return RespEncoder.respInteger(store.add(args.get(1), 0.0, args.get(4)));
+            return RespEncoder.respInteger(
+                    store.add(args.get(1), GeoHash.encode(latitude, longitude), args.get(4)));
         });
+    }
+
+    /** Whole scores print as plain integers (matching Redis / GEO scores); others keep their decimals. */
+    private static String formatScore(double score) {
+        if (score == Math.rint(score) && !Double.isInfinite(score)) {
+            return Long.toString((long) score);
+        }
+        return Double.toString(score);
     }
 
     // Web Mercator (EPSG:3857) clips latitude here rather than at +/-90.

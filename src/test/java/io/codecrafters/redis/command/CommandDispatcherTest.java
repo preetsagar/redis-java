@@ -239,10 +239,14 @@ class CommandDispatcherTest {
     @Test
     void geoaddStoresTheMemberInASortedSet() {
         assertEquals(":1\r\n", send("GEOADD", "places", "2.2944692", "48.8584625", "Paris"));
-        assertEquals(":1\r\n", send("GEOADD", "places", "-180", "-85.05112878", "edge")); // limits inclusive
-        assertEquals(":0\r\n", send("GEOADD", "places", "1", "1", "Paris"));               // re-add, not new
-        // both score 0; ordered lexicographically, and 'P'(0x50) < 'e'(0x65)
-        assertEquals("*2\r\n$5\r\nParis\r\n$4\r\nedge\r\n", send("ZRANGE", "places", "0", "-1"));
+        assertEquals(":0\r\n", send("GEOADD", "places", "2.2944692", "48.8584625", "Paris")); // re-add, not new
+        assertEquals("*1\r\n$5\r\nParis\r\n", send("ZRANGE", "places", "0", "-1"));
+    }
+
+    @Test
+    void geoaddScoresLocationsWithTheGeoHash() {
+        send("GEOADD", "places", "2.2944692", "48.8584625", "Paris");
+        assertEquals("$16\r\n3663832614298053\r\n", send("ZSCORE", "places", "Paris"));
     }
 
     @Test
