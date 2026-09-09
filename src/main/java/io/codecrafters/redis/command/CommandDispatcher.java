@@ -68,6 +68,13 @@ public class CommandDispatcher {
                 session.clearWatches();
                 yield RespEncoder.simpleString("OK");
             }
+            case "SUBSCRIBE" -> {
+                String channel = args.get(1);
+                yield RespEncoder.concat("*3\r\n".getBytes(),
+                        RespEncoder.bulkString("subscribe"),
+                        RespEncoder.bulkString(channel),
+                        RespEncoder.respInteger(session.subscribe(channel)));
+            }
             default -> {
                 Command command = registry.get(commandName);
                 if (command == null) {

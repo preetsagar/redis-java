@@ -130,6 +130,12 @@ class CommandDispatcherTest {
         assertTrue(reply.contains("master_repl_offset:"), reply);
     }
 
+    @Test
+    void subscribeReplyIsSubscribeChannelAndCount() {
+        assertEquals("*3\r\n$9\r\nsubscribe\r\n$3\r\nfoo\r\n:1\r\n", send("SUBSCRIBE", "foo"));
+        assertEquals("*3\r\n$9\r\nsubscribe\r\n$3\r\nbar\r\n:2\r\n", send("SUBSCRIBE", "bar"));
+    }
+
     // --- master side of the replication handshake ---
 
     @Test

@@ -4,8 +4,10 @@ import io.codecrafters.redis.store.Store;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Per-connection state: whether a MULTI is open, the queued commands, and the
@@ -64,5 +66,15 @@ public class ClientSession {
     public boolean isAnyWatchedKeyDirty() {
         return watchedVersions.entrySet().stream()
                 .anyMatch(e -> store.versionOf(e.getKey()) != e.getValue());
+    }
+
+    // --- pub/sub ---
+
+    private final Set<String> channels = new LinkedHashSet<>();
+
+    /** Subscribes to {@code channel} and returns the total channel count for this client. */
+    public int subscribe(String channel) {
+        channels.add(channel);
+        return channels.size();
     }
 }
