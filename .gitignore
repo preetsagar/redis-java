@@ -2,3 +2,7 @@
 target/
 .idea/
 /src/resource/
+graphify-out/
+.claude/
+CLAUDE.md
+codecrafters-redis.iml

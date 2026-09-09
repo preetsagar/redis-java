@@ -1,0 +1,117 @@
+package io.codecrafters.redis.command;
+
+import io.codecrafters.redis.protocol.RespEncoder;
+import io.codecrafters.redis.store.SortedSetStore;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+public class SortedSetCommands extends CommandGroup {
+
+    public SortedSetCommands(SortedSetStore store) {
+        // ZADD key score member -> number of new members added
+        add("ZADD", args -> RespEncoder.respInteger(
+                store.add(args.get(1), Double.parseDouble(args.get(2)), args.get(3))));
+
+        // ZRANK key member -> 0-based rank, or null bulk string if key/member absent
+        add("ZRANK", args -> {
+            Integer rank = store.rank(args.get(1), args.get(2));
+            return rank != null ? RespEncoder.respInteger(rank) : RespEncoder.nullBulkString();
+        });
+
+        // ZRANGE key start stop -> members in rank order (inclusive), empty array if out of range
+        add("ZRANGE", args -> RespEncoder.encodeList(
+                store.range(args.get(1), Integer.parseInt(args.get(2)), Integer.parseInt(args.get(3)))));
+
+        // ZCARD key -> number of members (0 if the set doesn't exist)
+        add("ZCARD", args -> RespEncoder.respInteger(store.card(args.get(1))));
+
+        // ZREM key member -> 1 if removed, 0 if the member wasn't there
+        add("ZREM", args -> RespEncoder.respInteger(store.remove(args.get(1), args.get(2))));
+
+        // ZSCORE key member -> score as a bulk string, or null bulk string if absent
+        add("ZSCORE", args -> {
+            Double score = store.score(args.get(1), args.get(2));
+            return score != null ? RespEncoder.bulkString(formatScore(score))
+                    : RespEncoder.nullBulkString();
+        });
+
+        // GEOADD key longitude latitude member -> count added (score = geohash of the coords)
+        add("GEOADD", args -> {
+            double longitude = Double.parseDouble(args.get(2));
+            double latitude = Double.parseDouble(args.get(3));
+            if (longitude < -180 || longitude > 180
+                    || latitude < -LATITUDE_LIMIT || latitude > LATITUDE_LIMIT) {
+                return RespEncoder.error("invalid longitude,latitude pair " + longitude + "," + latitude);
+            }
+            return RespEncoder.respInteger(
+                    store.add(args.get(1), GeoHash.encode(latitude, longitude), args.get(4)));
+        });
+
+        // GEOPOS key member... -> per member: [longitude, latitude] decoded from the score,
+        //                         or a null array if the key/member is absent
+        add("GEOPOS", args -> {
+            List<byte[]> entries = new ArrayList<>();
+            for (String member : args.subList(2, args.size())) {
+                Double score = store.score(args.get(1), member);
+                if (score == null) {
+                    entries.add(RespEncoder.emptyList()); // *-1\r\n
+                    continue;
+                }
+                double[] pos = GeoHash.decode((long) (double) score); // [lon, lat]
+                entries.add(RespEncoder.array(
+                        RespEncoder.bulkString(Double.toString(pos[0])),
+                        RespEncoder.bulkString(Double.toString(pos[1]))));
+            }
+            return RespEncoder.array(entries.toArray(byte[][]::new));
+        });
+
+        // GEODIST key member1 member2 -> distance in metres (bulk string), null if either is absent
+        add("GEODIST", args -> {
+            Double s1 = store.score(args.get(1), args.get(2));
+            Double s2 = store.score(args.get(1), args.get(3));
+            if (s1 == null || s2 == null) {
+                return RespEncoder.nullBulkString();
+            }
+            double[] a = GeoHash.decode((long) (double) s1); // [lon, lat]
+            double[] b = GeoHash.decode((long) (double) s2);
+            double metres = GeoHash.distance(a[1], a[0], b[1], b[0]);
+            return RespEncoder.bulkString(String.format(Locale.ROOT, "%.4f", metres));
+        });
+
+        // GEOSEARCH key FROMLONLAT <lon> <lat> BYRADIUS <radius> <unit> -> members within the circle
+        add("GEOSEARCH", args -> {
+            double centreLon = 0, centreLat = 0, radiusMetres = 0;
+            for (int i = 2; i + 1 < args.size(); i++) {
+                switch (args.get(i).toUpperCase()) {
+                    case "FROMLONLAT" -> {
+                        centreLon = Double.parseDouble(args.get(++i));
+                        centreLat = Double.parseDouble(args.get(++i));
+                    }
+                    case "BYRADIUS" -> radiusMetres =
+                            Double.parseDouble(args.get(i + 1)) * GeoHash.unitToMetres(args.get(i + 2));
+                }
+            }
+            List<String> hits = new ArrayList<>();
+            for (String member : store.range(args.get(1), 0, Integer.MAX_VALUE)) {
+                double[] p = GeoHash.decode((long) (double) store.score(args.get(1), member)); // [lon, lat]
+                if (GeoHash.distance(centreLat, centreLon, p[1], p[0]) <= radiusMetres) {
+                    hits.add(member);
+                }
+            }
+            return RespEncoder.encodeList(hits);
+        });
+    }
+
+    /** Whole scores print as plain integers (matching Redis / GEO scores); others keep their decimals. */
+    private static String formatScore(double score) {
+        if (score == Math.rint(score) && !Double.isInfinite(score)) {
+            return Long.toString((long) score);
+        }
+        return Double.toString(score);
+    }
+
+    // Web Mercator (EPSG:3857) clips latitude here rather than at +/-90.
+    private static final double LATITUDE_LIMIT = 85.05112878;
+}

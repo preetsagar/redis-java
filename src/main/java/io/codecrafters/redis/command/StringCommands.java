@@ -1,0 +1,56 @@
+package io.codecrafters.redis.command;
+
+import io.codecrafters.redis.protocol.RespEncoder;
+import io.codecrafters.redis.store.Store;
+
+public class StringCommands extends CommandGroup {
+
+    public StringCommands(Store store) {
+        add("SET", args -> {
+            if (args.size() > 3 && args.get(3).equalsIgnoreCase("EX")) {
+                store.set(args.get(1), args.get(2), Long.parseLong(args.get(4)) * 1000);
+            } else if (args.size() > 3 && args.get(3).equalsIgnoreCase("PX")) {
+                store.set(args.get(1), args.get(2), Long.parseLong(args.get(4)));
+            } else {
+                store.set(args.get(1), args.get(2));
+            }
+            return RespEncoder.simpleString("OK");
+        });
+
+        add("GET", args -> {
+            String value = store.get(args.get(1));
+            return value != null ? RespEncoder.bulkString(value) : RespEncoder.nullBulkString();
+        });
+
+        add("INCR", args -> {
+            try {
+                String value = store.increment(args.get(1));
+                return RespEncoder.respInteger(Integer.parseInt(value));
+            } catch (NumberFormatException e) {
+                return RespEncoder.error("value is not an integer or out of range");
+            }
+        });
+
+        // SETBIT key offset value -> the bit that was there before
+        add("SETBIT", args -> RespEncoder.respInteger(store.setBit(
+                args.get(1), Integer.parseInt(args.get(2)), Integer.parseInt(args.get(3)))));
+
+        // GETBIT key offset -> the bit at that offset (0 if unset / key missing)
+        add("GETBIT", args -> RespEncoder.respInteger(
+                store.getBit(args.get(1), Integer.parseInt(args.get(2)))));
+
+        // STRLEN key -> length of the string value in bytes (0 if missing)
+        add("STRLEN", args -> RespEncoder.respInteger(store.strlen(args.get(1))));
+
+        // BITCOUNT key [start end]  (byte range, inclusive) -> number of 1-bits
+        add("BITCOUNT", args -> {
+            int start = args.size() >= 4 ? Integer.parseInt(args.get(2)) : 0;
+            int end = args.size() >= 4 ? Integer.parseInt(args.get(3)) : Integer.MAX_VALUE;
+            return RespEncoder.respInteger(store.bitCount(args.get(1), start, end));
+        });
+
+        // BITOP <AND|OR> dest src... -> length of the destination in bytes
+        add("BITOP", args -> RespEncoder.respInteger(
+                store.bitop(args.get(1), args.get(2), args.subList(3, args.size()))));
+    }
+}

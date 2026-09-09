@@ -1,0 +1,123 @@
+package io.codecrafters.redis.protocol;
+
+import io.codecrafters.redis.store.StreamStore;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class RespEncoder {
+
+    public static byte[] simpleString(String str) {
+        return ("+" + str + "\r\n").getBytes();
+    }
+
+    public static byte[] bulkString(String str) {
+        return ("$" + str.length() + "\r\n" + str + "\r\n").getBytes();
+    }
+
+    public static byte[] multiBulkString(String... lines) {
+        return bulkString(String.join("\r\n", lines));
+    }
+
+    public static byte[] nullBulkString() {
+        return "$-1\r\n".getBytes();
+    }
+
+    /**
+     * RDB transfer frame sent by a master right after {@code +FULLRESYNC}:
+     * {@code $<length>\r\n<raw bytes>}. Unlike a bulk string, there is no
+     * trailing CRLF.
+     */
+    public static byte[] rdbFile(byte[] contents) {
+        return concat(("$" + contents.length + "\r\n").getBytes(), contents);
+    }
+
+    /** RESP array of already-encoded elements: {@code *<n>\r\n} then each element. */
+    public static byte[] array(byte[]... elements) {
+        byte[][] parts = new byte[elements.length + 1][];
+        parts[0] = ("*" + elements.length + "\r\n").getBytes();
+        System.arraycopy(elements, 0, parts, 1, elements.length);
+        return concat(parts);
+    }
+
+    public static byte[] concat(byte[]... parts) {
+        int total = 0;
+        for (byte[] part : parts) {
+            total += part.length;
+        }
+        byte[] out = new byte[total];
+        int pos = 0;
+        for (byte[] part : parts) {
+            System.arraycopy(part, 0, out, pos, part.length);
+            pos += part.length;
+        }
+        return out;
+    }
+
+    public static byte[] encodeList(List<String> arr) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("*").append(arr.size()).append("\r\n");
+        for (String str : arr) {
+            sb.append("$").append(str.length()).append("\r\n");
+            sb.append(str).append("\r\n");
+        }
+        return sb.toString().getBytes();
+    }
+
+    public static byte[] emptyList() {
+        return "*-1\r\n".getBytes();
+    }
+    public static byte[] emptyArray() {
+        return "*0\r\n".getBytes();
+    }
+
+    public static byte[] error(String message) {
+        return ("-ERR " + message + "\r\n").getBytes();
+    }
+
+    /** A RESP simple error with the message verbatim (no {@code ERR} prefix), e.g. {@code -WRONGPASS ...}. */
+    public static byte[] simpleError(String message) {
+        return ("-" + message + "\r\n").getBytes();
+    }
+
+    public static byte[] respInteger(Integer value) {
+        return (":"+value+"\r\n").getBytes();
+    }
+
+    public static byte[] encodeXRead(List<String> keys, List<List<StreamStore.StreamEntry>> allEntries) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("*").append(keys.size()).append("\r\n");
+        for (int i = 0; i < keys.size(); i++) {
+            String key = keys.get(i);
+            List<StreamStore.StreamEntry> entries = allEntries.get(i);
+            sb.append("*2\r\n");
+            sb.append("$").append(key.length()).append("\r\n").append(key).append("\r\n");
+            sb.append("*").append(entries.size()).append("\r\n");
+            for (StreamStore.StreamEntry entry : entries) {
+                sb.append("*2\r\n");
+                sb.append("$").append(entry.id().length()).append("\r\n").append(entry.id()).append("\r\n");
+                List<String> fields = entry.fields();
+                sb.append("*").append(fields.size()).append("\r\n");
+                for (String field : fields) {
+                    sb.append("$").append(field.length()).append("\r\n").append(field).append("\r\n");
+                }
+            }
+        }
+        return sb.toString().getBytes();
+    }
+
+    public static byte[] encodeStreamEntries(List<StreamStore.StreamEntry> entries) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("*").append(entries.size()).append("\r\n");
+        for (StreamStore.StreamEntry entry : entries) {
+            sb.append("*2\r\n");
+            sb.append("$").append(entry.id().length()).append("\r\n").append(entry.id()).append("\r\n");
+            List<String> fields = entry.fields();
+            sb.append("*").append(fields.size()).append("\r\n");
+            for (String field : fields) {
+                sb.append("$").append(field.length()).append("\r\n").append(field).append("\r\n");
+            }
+        }
+        return sb.toString().getBytes();
+    }
+}

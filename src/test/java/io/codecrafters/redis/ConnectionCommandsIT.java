@@ -1,31 +1,13 @@
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+package io.codecrafters.redis;
+
 import org.junit.jupiter.api.Test;
 
 import java.io.InputStream;
 import java.net.Socket;
-import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class MainTest {
-
-    private static final int PORT = 6379;
-    private Thread serverThread;
-
-    @BeforeEach
-    void startServer() {
-        serverThread = new Thread(() -> new RedisServer(PORT).start());
-        serverThread.setDaemon(true);
-        serverThread.start();
-    }
-
-    @AfterEach
-    void stopServer() throws Exception {
-        serverThread.interrupt();
-        serverThread.join(1000);
-    }
-
+class ConnectionCommandsIT extends RedisServerTestBase {
 
     @Test
     void serverBindsToPort6379() throws Exception {
@@ -44,23 +26,22 @@ class MainTest {
     @Test
     void serverAcceptsConnectionWithoutError() throws Exception {
         try (Socket client = new Socket("localhost", PORT)) {
-            client.getOutputStream().write("ping\r\n".getBytes());
+            client.getOutputStream().write(resp("PING").getBytes());
             assertDoesNotThrow(() -> {
                 byte[] buffer = new byte[1024];
                 int bytesRead = client.getInputStream().read(buffer);
                 assertTrue(bytesRead > 0, "Server should send a response");
-            }, "Reading from the accepted socket should not throw");
+            });
         }
     }
 
     @Test
-    void serverRepliesWithPongForAnyInput() throws Exception {
+    void serverRepliesWithPongForPingCommand() throws Exception {
         try (Socket client = new Socket("localhost", PORT)) {
-            client.getOutputStream().write("hello\r\n".getBytes());
+            client.getOutputStream().write(resp("PING").getBytes());
             byte[] buffer = new byte[1024];
             int bytesRead = client.getInputStream().read(buffer);
-            String response = new String(buffer, 0, bytesRead);
-            assertEquals("+PONG\r\n", response, "Server should respond with +PONG for any input");
+            assertEquals("+PONG\r\n", new String(buffer, 0, bytesRead));
         }
     }
 
@@ -69,15 +50,20 @@ class MainTest {
         try (Socket client = new Socket("localhost", PORT)) {
             InputStream in = client.getInputStream();
             byte[] buffer = new byte[1024];
-
-            String[] commands = {"ping\r\n", "hello\r\n", "world\r\n"};
-            for (String command : commands) {
-                client.getOutputStream().write(command.getBytes());
-                int bytesRead = in.read(buffer);
-                String response = new String(buffer, 0, bytesRead);
-                assertEquals("+PONG\r\n", response,
-                    "Server should respond with +PONG for command: " + command.trim());
+            for (int i = 0; i < 3; i++) {
+                client.getOutputStream().write(resp("PING").getBytes());
+                assertEquals("+PONG\r\n", new String(buffer, 0, in.read(buffer)));
             }
+        }
+    }
+
+    @Test
+    void serverRepliesWithEchoMessage() throws Exception {
+        try (Socket client = new Socket("localhost", PORT)) {
+            client.getOutputStream().write(resp("ECHO", "hey").getBytes());
+            byte[] buffer = new byte[1024];
+            int bytesRead = client.getInputStream().read(buffer);
+            assertEquals("$3\r\nhey\r\n", new String(buffer, 0, bytesRead));
         }
     }
 }

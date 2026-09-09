@@ -1,0 +1,119 @@
+@startuml classes
+!pragma layout smetana
+title Redis Server — Structure After Refactor
+
+skinparam classAttributeIconSize 0
+
+package "io.codecrafters.redis" {
+  class Main
+  class RedisServer {
+    - int port
+    + start()
+    + stop()
+  }
+}
+
+package "client" {
+  class ClientHandler <<Runnable>> {
+    - Socket client
+    - CommandDispatcher dispatcher
+    - ClientSession session
+    + run()
+  }
+  class ClientSession {
+    - boolean inMulti
+    - List<List<String>> commandQueue
+    - Map<String,Long> watchedVersions
+    + beginMulti() / endMulti()
+    + queue() / drainQueue() / clearQueue()
+    + watch(key) / clearWatches()
+    + isAnyWatchedKeyDirty() : boolean
+  }
+}
+
+package "command" {
+  class CommandDispatcher {
+    - Database db
+    - CommandRegistry registry
+    + newSession() : ClientSession
+    + dispatch(args, session) : byte[]
+    - exec() / discard() / watch()
+  }
+  class CommandRegistry {
+    - Map<String,Command> commands
+    + get(name) : Command
+  }
+  interface Command <<functional>> {
+    + execute(args) : byte[]
+  }
+  abstract class CommandGroup {
+    # add(name, Command)
+    + commands() : Map
+  }
+  class ConnectionCommands
+  class StringCommands
+  class ListCommands
+  class StreamCommands
+  class KeyCommands
+}
+
+package "protocol" {
+  class RespParser {
+    + readCommand() : List<String>
+  }
+  class RespEncoder <<static>> {
+    + simpleString() / bulkString() / error() ...
+  }
+}
+
+package "store" {
+  class Database {
+    + stringStore() : Store
+    + listStore() : ListStore
+    + streamStore() : StreamStore
+  }
+  class Store {
+    - Map<String,String> data
+    - Map<String,Long> expiry
+    - ConcurrentHashMap<String,Long> keyVersions
+    + set() / get() / increment()
+    + versionOf(key) : long
+  }
+  class ListStore
+  class StreamStore
+}
+
+Main --> RedisServer
+RedisServer --> Database : creates 1
+RedisServer --> CommandDispatcher : creates 1
+RedisServer "1" --> "N" ClientHandler : one per connection\n(new thread)
+
+ClientHandler --> CommandDispatcher : shared
+ClientHandler --> ClientSession : owns 1
+ClientHandler --> RespParser : uses
+
+CommandDispatcher --> CommandRegistry : builds 1
+CommandDispatcher ..> RespEncoder : uses
+CommandDispatcher ..> ClientSession : reads/mutates
+CommandRegistry o--> Command : name -> handler
+
+CommandGroup <|-- ConnectionCommands
+CommandGroup <|-- StringCommands
+CommandGroup <|-- ListCommands
+CommandGroup <|-- StreamCommands
+CommandGroup <|-- KeyCommands
+CommandGroup ..> Command : produces
+
+CommandRegistry --> Database : passes stores\nto modules
+StringCommands --> Store
+ListCommands --> ListStore
+StreamCommands --> StreamStore
+KeyCommands --> Database
+
+Database *--> Store
+Database *--> ListStore
+Database *--> StreamStore
+
+ClientSession ..> Store : versionOf() for WATCH
+
+@enduml
