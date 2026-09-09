@@ -32,6 +32,7 @@ public class RedisServer {
         RdbReader.loadInto(Path.of(reddisDataBase.getDir(), reddisDataBase.getDbFileName()), db.stringStore());
         Aof aof = Aof.open(getParsed(), reddisDataBase.getDir());
         CommandDispatcher dispatcher = new CommandDispatcher(db, replication, new Replicas(), reddisDataBase, aof);
+        aof.replay(dispatcher); // rebuild state from the AOF before accepting clients
 
         if (replication.role().equals("slave")) {
             new ReplicationClient(

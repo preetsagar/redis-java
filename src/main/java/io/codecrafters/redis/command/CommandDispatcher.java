@@ -74,7 +74,7 @@ public class CommandDispatcher {
                     yield RespEncoder.error("unknown command '" + args.get(0) + "'");
                 }
                 byte[] reply = command.execute(args);
-                if (WRITE_COMMANDS.contains(commandName)) {
+                if (WRITE_COMMANDS.contains(commandName) && !aof.isReplaying()) {
                     byte[] writeCommand = RespEncoder.encodeList(args);
                     aof.append(writeCommand); // before the reply — appendfsync always must be durable first
                     replicas.propagate(writeCommand);

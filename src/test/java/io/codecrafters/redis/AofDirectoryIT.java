@@ -102,6 +102,27 @@ class AofDirectoryIT {
                 "must not touch the default filename when the manifest names another");
     }
 
+    @Test
+    void startupReplaysCommandsFromTheManifestsAofFile() throws Exception {
+        Path aofDir = Files.createDirectory(dir.resolve("myaof"));
+        Files.writeString(aofDir.resolve("custom.aof.manifest"),
+                "file replay-me.1.incr.aof seq 1 type i\n");
+        Files.writeString(aofDir.resolve("replay-me.1.incr.aof"),
+                "*3\r\n$3\r\nSET\r\n$5\r\nmango\r\n$2\r\n42\r\n");
+
+        Main.getParsed().put("dir", dir.toString());
+        Main.getParsed().put("appendonly", "yes");
+        Main.getParsed().put("appenddirname", "myaof");
+        Main.getParsed().put("appendfilename", "custom.aof");
+
+        int port = startServer();
+        try (Socket client = new Socket("localhost", port)) {
+            client.setSoTimeout(2000);
+            client.getOutputStream().write("*2\r\n$3\r\nGET\r\n$5\r\nmango\r\n".getBytes());
+            assertEquals("$2\r\n42\r\n", new String(client.getInputStream().readNBytes(8)));
+        }
+    }
+
     private int startServer() throws Exception {
         int port;
         try (ServerSocket s = new ServerSocket(0)) {

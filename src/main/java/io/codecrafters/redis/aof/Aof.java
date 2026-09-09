@@ -1,8 +1,14 @@
 package io.codecrafters.redis.aof;
 
+import io.codecrafters.redis.client.ClientSession;
+import io.codecrafters.redis.command.CommandDispatcher;
+import io.codecrafters.redis.protocol.RespParser;
+
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 import static java.nio.file.StandardOpenOption.APPEND;
@@ -26,10 +32,36 @@ public final class Aof {
 
     private final Path file;
     private final boolean fsyncAlways;
+    private boolean replaying;
 
     private Aof(Path file, boolean fsyncAlways) {
         this.file = file;
         this.fsyncAlways = fsyncAlways;
+    }
+
+    /** True while {@link #replay} is applying the file — write side effects are suppressed then. */
+    public boolean isReplaying() {
+        return replaying;
+    }
+
+    /** Replays the active AOF file's RESP commands through the dispatcher to rebuild state. */
+    public void replay(CommandDispatcher dispatcher) {
+        if (file == null || Files.notExists(file)) {
+            return;
+        }
+        replaying = true;
+        try (BufferedReader in = Files.newBufferedReader(file)) {
+            RespParser parser = new RespParser(in);
+            ClientSession session = dispatcher.newSession();
+            List<String> args;
+            while ((args = parser.readCommand()) != null) {
+                dispatcher.dispatch(args, session);
+            }
+        } catch (IOException e) {
+            System.out.println("[aof] replay failed: " + e.getMessage());
+        } finally {
+            replaying = false;
+        }
     }
 
     public static Aof disabled() {
