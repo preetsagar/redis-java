@@ -79,6 +79,29 @@ public class SortedSetCommands extends CommandGroup {
             double metres = GeoHash.distance(a[1], a[0], b[1], b[0]);
             return RespEncoder.bulkString(String.format(Locale.ROOT, "%.4f", metres));
         });
+
+        // GEOSEARCH key FROMLONLAT <lon> <lat> BYRADIUS <radius> <unit> -> members within the circle
+        add("GEOSEARCH", args -> {
+            double centreLon = 0, centreLat = 0, radiusMetres = 0;
+            for (int i = 2; i + 1 < args.size(); i++) {
+                switch (args.get(i).toUpperCase()) {
+                    case "FROMLONLAT" -> {
+                        centreLon = Double.parseDouble(args.get(++i));
+                        centreLat = Double.parseDouble(args.get(++i));
+                    }
+                    case "BYRADIUS" -> radiusMetres =
+                            Double.parseDouble(args.get(i + 1)) * GeoHash.unitToMetres(args.get(i + 2));
+                }
+            }
+            List<String> hits = new ArrayList<>();
+            for (String member : store.range(args.get(1), 0, Integer.MAX_VALUE)) {
+                double[] p = GeoHash.decode((long) (double) store.score(args.get(1), member)); // [lon, lat]
+                if (GeoHash.distance(centreLat, centreLon, p[1], p[0]) <= radiusMetres) {
+                    hits.add(member);
+                }
+            }
+            return RespEncoder.encodeList(hits);
+        });
     }
 
     /** Whole scores print as plain integers (matching Redis / GEO scores); others keep their decimals. */

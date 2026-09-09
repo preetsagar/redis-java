@@ -18,6 +18,16 @@ final class GeoHash {
     private GeoHash() {
     }
 
+    /** Metres per one unit of a GEO distance unit (m / km / mi / ft). */
+    static double unitToMetres(String unit) {
+        return switch (unit.toLowerCase()) {
+            case "km" -> 1000.0;
+            case "mi" -> 1609.34;
+            case "ft" -> 0.3048;
+            default -> 1.0; // m
+        };
+    }
+
     /** Haversine great-circle distance between two lat/lon points, in metres. */
     static double distance(double lat1, double lon1, double lat2, double lon2) {
         double lat1r = Math.toRadians(lat1);

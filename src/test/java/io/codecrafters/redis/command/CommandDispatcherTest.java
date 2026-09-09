@@ -272,6 +272,22 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void geosearchReturnsMembersWithinTheRadius() {
+        send("GEOADD", "places", "11.5030378", "48.164271", "Munich");
+        send("GEOADD", "places", "2.2944692", "48.8584625", "Paris");
+        send("GEOADD", "places", "-0.0884948", "51.506479", "London");
+
+        assertEquals("*1\r\n$5\r\nParis\r\n",
+                send("GEOSEARCH", "places", "FROMLONLAT", "2", "48", "BYRADIUS", "100000", "m"));
+        assertEquals("*1\r\n$6\r\nMunich\r\n",
+                send("GEOSEARCH", "places", "FROMLONLAT", "11", "50", "BYRADIUS", "300000", "m"));
+
+        String wider = send("GEOSEARCH", "places", "FROMLONLAT", "2", "48", "BYRADIUS", "500000", "m");
+        assertTrue(wider.startsWith("*2\r\n"), wider);
+        assertTrue(wider.contains("Paris") && wider.contains("London"), wider);
+    }
+
+    @Test
     void geoaddRejectsOutOfRangeCoordinates() {
         String badLat = send("GEOADD", "places", "180", "90", "t1");
         assertTrue(badLat.startsWith("-ERR"), badLat);
