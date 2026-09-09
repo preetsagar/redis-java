@@ -16,6 +16,9 @@ public class ServerCommands extends CommandGroup {
 
         add("REPLCONF", args -> RespEncoder.simpleString("OK"));
 
+        // ACL WHOAMI -> current user. ponytail: always "default" until auth lands.
+        add("ACL", args -> RespEncoder.bulkString("default"));
+
         // +FULLRESYNC <replid> 0\r\n  immediately followed by  $<len>\r\n<rdb bytes>
         add("PSYNC", args -> RespEncoder.concat(
                 RespEncoder.simpleString("FULLRESYNC " + replicationInfo.replId() + " 0"),

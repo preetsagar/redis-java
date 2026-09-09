@@ -337,6 +337,11 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void aclWhoamiReturnsDefault() {
+        assertEquals("$7\r\ndefault\r\n", send("ACL", "WHOAMI"));
+    }
+
+    @Test
     void infoRoutesToServerCommandAndRepliesWithABulkString() {
         String reply = send("INFO", "replication");
         assertTrue(reply.startsWith("$"), reply);
