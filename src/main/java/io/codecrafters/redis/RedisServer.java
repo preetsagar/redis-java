@@ -10,6 +10,7 @@ import io.codecrafters.redis.store.Database;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static io.codecrafters.redis.Main.getParsed;
@@ -30,6 +31,16 @@ public class RedisServer {
         Rdb reddisDataBase = new Rdb(getParsed().get("dbfilename"), getParsed().get("dir"));
         RdbReader.loadInto(Path.of(reddisDataBase.getDir(), reddisDataBase.getDbFileName()), db.stringStore());
         CommandDispatcher dispatcher = new CommandDispatcher(db, replication, new Replicas(), reddisDataBase);
+
+        if ("yes".equals(getParsed().get("appendonly"))) {
+            Path appendDir = Path.of(reddisDataBase.getDir(),
+                    getParsed().getOrDefault("appenddirname", "appendonlydir"));
+            try {
+                Files.createDirectories(appendDir); // no-op if it already exists
+            } catch (IOException e) {
+                System.out.println("[aof] could not create " + appendDir + ": " + e.getMessage());
+            }
+        }
 
         if (replication.role().equals("slave")) {
             new ReplicationClient(
