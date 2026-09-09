@@ -151,6 +151,19 @@ class CommandDispatcherTest {
     }
 
     @Test
+    void unsubscribeReplyIsUnsubscribeChannelAndRemainingCount() {
+        send("SUBSCRIBE", "foo");
+        send("SUBSCRIBE", "bar");
+
+        assertEquals("*3\r\n$11\r\nunsubscribe\r\n$3\r\nfoo\r\n:1\r\n", send("UNSUBSCRIBE", "foo"));
+        assertEquals("*3\r\n$11\r\nunsubscribe\r\n$3\r\nbar\r\n:0\r\n", send("UNSUBSCRIBE", "bar"));
+
+        // unsubscribing a channel that was never subscribed: no count change
+        send("SUBSCRIBE", "baz");
+        assertEquals("*3\r\n$11\r\nunsubscribe\r\n$5\r\nnever\r\n:1\r\n", send("UNSUBSCRIBE", "never"));
+    }
+
+    @Test
     void subscribedModeRejectsNonPubSubCommands() {
         send("SUBSCRIBE", "foo");
 

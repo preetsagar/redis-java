@@ -40,6 +40,30 @@ class PubSubDeliveryIT extends RedisServerTestBase {
         }
     }
 
+    @Test
+    void anUnsubscribedClientStopsReceivingChannelMessages() throws Exception {
+        try (Socket sub1 = new Socket("localhost", PORT);
+             Socket sub2 = new Socket("localhost", PORT);
+             Socket publisher = new Socket("localhost", PORT)) {
+
+            sub1.setSoTimeout(500);
+            sub2.setSoTimeout(2000);
+
+            subscribe(sub1, "foo");
+            subscribe(sub2, "foo");
+
+            sub1.getOutputStream().write(resp("UNSUBSCRIBE", "foo").getBytes());
+            sub1.getInputStream().read(new byte[64]); // consume the unsubscribe reply
+
+            publisher.getOutputStream().write(resp("PUBLISH", "foo", "after").getBytes());
+            assertEquals(":1\r\n", new String(publisher.getInputStream().readNBytes(4)));
+
+            String message = "*3\r\n$7\r\nmessage\r\n$3\r\nfoo\r\n$5\r\nafter\r\n";
+            assertEquals(message, new String(sub2.getInputStream().readNBytes(message.length())));
+            assertThrows(SocketTimeoutException.class, () -> sub1.getInputStream().read());
+        }
+    }
+
     private void subscribe(Socket client, String channel) throws Exception {
         client.getOutputStream().write(resp("SUBSCRIBE", channel).getBytes());
         client.getInputStream().read(new byte[64]); // consume the subscribe confirmation

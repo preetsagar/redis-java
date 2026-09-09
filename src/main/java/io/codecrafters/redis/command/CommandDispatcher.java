@@ -89,15 +89,20 @@ public class CommandDispatcher {
             case "SUBSCRIBE" -> {
                 String channel = args.get(1);
                 pubSub.subscribe(channel, session);
-                yield RespEncoder.concat("*3\r\n".getBytes(),
-                        RespEncoder.bulkString("subscribe"),
+                yield RespEncoder.array(RespEncoder.bulkString("subscribe"),
                         RespEncoder.bulkString(channel),
                         RespEncoder.respInteger(session.subscribe(channel)));
             }
+            case "UNSUBSCRIBE" -> {
+                String channel = args.get(1);
+                pubSub.unsubscribe(channel, session);
+                yield RespEncoder.array(RespEncoder.bulkString("unsubscribe"),
+                        RespEncoder.bulkString(channel),
+                        RespEncoder.respInteger(session.unsubscribe(channel)));
+            }
             case "PUBLISH" -> RespEncoder.respInteger(pubSub.publish(args.get(1), args.get(2)));
             case "PING" -> session.inSubscribedMode()
-                    ? RespEncoder.concat("*2\r\n".getBytes(),
-                            RespEncoder.bulkString("pong"), RespEncoder.bulkString(""))
+                    ? RespEncoder.array(RespEncoder.bulkString("pong"), RespEncoder.bulkString(""))
                     : registry.get("PING").execute(args);
             default -> {
                 Command command = registry.get(commandName);

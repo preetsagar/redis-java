@@ -21,10 +21,17 @@ public class PubSub {
         byChannel.computeIfAbsent(channel, c -> ConcurrentHashMap.newKeySet()).add(subscriber);
     }
 
+    public void unsubscribe(String channel, ClientSession subscriber) {
+        Set<ClientSession> subs = byChannel.get(channel);
+        if (subs != null) {
+            subs.remove(subscriber);
+        }
+    }
+
     /** Delivers {@code ["message", channel, payload]} to every subscriber; returns how many. */
     public int publish(String channel, String payload) {
         Set<ClientSession> subs = byChannel.getOrDefault(channel, Set.of());
-        byte[] message = RespEncoder.concat("*3\r\n".getBytes(),
+        byte[] message = RespEncoder.array(
                 RespEncoder.bulkString("message"),
                 RespEncoder.bulkString(channel),
                 RespEncoder.bulkString(payload));

@@ -82,6 +82,12 @@ public class ClientSession {
         return channels.size();
     }
 
+    /** Unsubscribes from {@code channel} (no-op if not subscribed); returns the remaining count. */
+    public int unsubscribe(String channel) {
+        channels.remove(channel);
+        return channels.size();
+    }
+
     /** True once this client holds at least one subscription (restricted command set applies). */
     public boolean inSubscribedMode() {
         return !channels.isEmpty();

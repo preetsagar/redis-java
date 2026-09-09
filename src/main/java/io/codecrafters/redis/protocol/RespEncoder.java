@@ -32,6 +32,14 @@ public class RespEncoder {
         return concat(("$" + contents.length + "\r\n").getBytes(), contents);
     }
 
+    /** RESP array of already-encoded elements: {@code *<n>\r\n} then each element. */
+    public static byte[] array(byte[]... elements) {
+        byte[][] parts = new byte[elements.length + 1][];
+        parts[0] = ("*" + elements.length + "\r\n").getBytes();
+        System.arraycopy(elements, 0, parts, 1, elements.length);
+        return concat(parts);
+    }
+
     public static byte[] concat(byte[]... parts) {
         int total = 0;
         for (byte[] part : parts) {
